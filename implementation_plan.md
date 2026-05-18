@@ -4,7 +4,7 @@ This plan details how your team of 5 can build and launch the **Inventory & Dema
 
 ---
 
-## 🛠️ The Tech Stack
+## The Tech Stack
 
 To build this system using modern multi-agent practices in 2026, you will use:
 - **Core Language**: Python 3.10+
@@ -15,7 +15,7 @@ To build this system using modern multi-agent practices in 2026, you will use:
 
 ---
 
-## 👥 Team Roles & Task Allocation (5 Developers)
+## Team Roles & Task Allocation (5 Developers)
 
 To ensure everyone is working efficiently without stepping on each other's toes, allocate the roles as follows:
 
@@ -35,7 +35,7 @@ graph TD
     D1 -->|"Synthesized Plan"| D5
 ```
 
-### 🧑‍💻 Developer 1: Lead Architect & Orchestration (Branch: `feature/orchestrator`)
+### Developer 1: Lead Architect & Orchestration (Branch: `feature/orchestrator`)
 **Role:** Builds the central brain and handles the coordinate flow of specialist agents.
 - **Tasks:**
   - Initialize the main Python project structure.
@@ -43,7 +43,7 @@ graph TD
   - Define the main coordination loop (`run_inventory_cycle`).
   - Set up **Guardrails & Autonomy Thresholds** (capping automatic spend at $10k, flagging confidence < 0.7, etc.).
 
-### 🧑•💻 Developer 2: Data & Forecasting Agent (Branch: `feature/demand-agent`)
+### Developer 2: Data & Forecasting Agent (Branch: `feature/demand-agent`)
 **Role:** Ingests historical data and builds the demand forecasting agent.
 - **Tasks:**
   - Create the `DemandForecastingAgent`.
@@ -51,7 +51,7 @@ graph TD
   - Define the forecasting logic (either calling GPT-4o with zero-shot prompting or integrating a light stats model like Prophet/ARIMA to work alongside the agent).
   - Output structured JSON: `{sku_id, forecast_7d, forecast_30d, forecast_90d, confidence_score}`.
 
-### 🧑•💻 Developer 3: Automation & Reorder Agent (Branch: `feature/reorder-agent`)
+### Developer 3: Automation & Reorder Agent (Branch: `feature/reorder-agent`)
 **Role:** Handles supplier communications, automated purchasing, and RFQs.
 - **Tasks:**
   - Create the `ReorderSupplierAgent` and `AnomalyDetectionAgent`.
@@ -59,14 +59,14 @@ graph TD
   - Implement the trigger logic (when current stock < safety stock, flag a reorder event).
   - Set up email/message alerting if a supplier capacity or delay is detected.
 
-### 🧑•💻 Developer 4: Allocation & Markdown Agents (Branch: `feature/markdown-allocation`)
+### Developer 4: Allocation & Markdown Agents (Branch: `feature/markdown-allocation`)
 **Role:** Optimizes inventory distributions and pricing strategies.
 - **Tasks:**
   - Create the `WarehouseAllocationAgent` (optimizes stock levels across multiple fulfillment centers) and `MarkdownPricingAgent` (calculates optimal discounts for slow-moving products).
   - Build Mock/Real tools: `transfer_stock` and `apply_markdown` (updates commerce catalog prices).
   - Impose the safety guardrail: no markdown exceeds 40% depth.
 
-### 🧑•💻 Developer 5: Buyer Dashboard & DevOps (Branch: `feature/buyer-portal`)
+### Developer 5: Buyer Dashboard & DevOps (Branch: `feature/buyer-portal`)
 **Role:** Builds the visual dashboard for humans to approve critical actions and manages deployment.
 - **Tasks:**
   - Build a simple FastAPI dashboard (using HTML/CSS or Streamlit) showing the active inventory status, forecast charts, and **Pending Approvals** (for actions exceeding autonomy thresholds).
@@ -75,7 +75,7 @@ graph TD
 
 ---
 
-## 📈 Development Roadmap & Milestones
+## Development Roadmap & Milestones
 
 To keep your WhatsApp group free of stress, work in these clear weekly milestones:
 
@@ -89,7 +89,7 @@ To keep your WhatsApp group free of stress, work in these clear weekly milestone
 
 ---
 
-## 🤝 How to Collaborate (OpenWork, OpenCode & WhatsApp)
+## How to Collaborate (OpenWork, OpenCode & WhatsApp)
 
 1. **Task Management (OpenWork):** We will use **OpenWork** to assign and track our tasks (e.g., assigning Dev 1 to Orchestrator, Dev 2 to Demand Agent, etc.). Every morning, update your progress on OpenWork.
 2. **Code Collaboration (OpenCode):** Your teammates will be using **OpenCode** for version control. 
