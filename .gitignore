@@ -2,3 +2,6 @@
 __pycache__/
 *.pyc
 read_docx.py
+extract.py
+draft_implementation_plan.md
+
