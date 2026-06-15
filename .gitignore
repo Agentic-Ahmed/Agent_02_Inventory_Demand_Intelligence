@@ -5,3 +5,19 @@ read_docx.py
 extract.py
 draft_implementation_plan.md
 
+# Contains MCP server secrets (Context7 API key)
+.mcp.json
+
+# Python virtualenv
+.venv/
+
+# Per-agent Gemini API keys and local DBs — never commit
+backend/.env
+.env
+conversations.db
+*.db
+
+# Eval checkpoints and run logs
+backend/.eval_state/
+*.log
+
