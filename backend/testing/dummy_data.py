@@ -138,3 +138,56 @@ def generate_reorder_datasets(n: int = 50, seed: int = 7) -> list[dict]:
             }
         )
     return datasets
+
+
+def generate_warehouse_datasets(n: int = 50, seed: int = 11) -> list[dict]:
+    """Deterministic warehouse-allocation scenarios. Buckets (clean, one outcome each):
+      bucket 0      -> no action     (network already balanced, no transfers)
+      bucket 1      -> safety trip   (planned transfer drops a source below safety)
+      bucket 2, 3   -> auto-allocate (surplus -> deficit, respects safety stock)
+    Each carries a `mock_decision` (AllocationPlan) the FakeModel emits in mock mode.
+    """
+    rng = random.Random(seed)
+    datasets: list[dict] = []
+    for i in range(n):
+        sku = f"SKU-{3000 + i}"
+        bucket = i % 4
+
+        if bucket == 0:  # balanced -> no action
+            warehouses = {
+                "WH-A": {"on_hand": 200, "safety_stock": 50, "demand_7d": 120, "capacity": 1000},
+                "WH-B": {"on_hand": 180, "safety_stock": 50, "demand_7d": 110, "capacity": 1000},
+            }
+            transfers, rebalance = [], 0
+        elif bucket == 1:  # transfer would drop WH-A below safety -> guardrail trips
+            warehouses = {
+                "WH-A": {"on_hand": 100, "safety_stock": 80, "demand_7d": 90, "capacity": 1000},
+                "WH-B": {"on_hand": 40, "safety_stock": 50, "demand_7d": 120, "capacity": 1000},
+            }
+            qty = 50  # WH-A: 100 - 50 = 50 < safety 80 -> violation
+            transfers = [{"from_warehouse": "WH-A", "to_warehouse": "WH-B", "qty": qty}]
+            rebalance = qty
+        else:  # surplus -> deficit, safe
+            surplus = rng.randint(250, 400)
+            qty = rng.randint(80, 150)  # WH-A: surplus - qty >= 100 >= safety 50
+            warehouses = {
+                "WH-A": {"on_hand": surplus, "safety_stock": 50, "demand_7d": 100, "capacity": 1000},
+                "WH-B": {"on_hand": 30, "safety_stock": 50, "demand_7d": 150, "capacity": 1000},
+            }
+            transfers = [{"from_warehouse": "WH-A", "to_warehouse": "WH-B", "qty": qty}]
+            rebalance = qty
+
+        datasets.append(
+            {
+                "sku": sku,
+                "data_age_hours": 0.5,
+                "warehouses": warehouses,
+                "mock_decision": {
+                    "sku": sku,
+                    "transfers": transfers,
+                    "rebalance_units": rebalance,
+                    "reasoning": "mock allocation plan",
+                },
+            }
+        )
+    return datasets

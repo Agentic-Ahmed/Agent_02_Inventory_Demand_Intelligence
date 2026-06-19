@@ -13,7 +13,7 @@ from agents import (
 )
 
 from ..core.context import RunContext
-from ..models.schemas import Forecast, ReorderDecision
+from ..models.schemas import Forecast, ReorderDecision, AllocationPlan
 
 
 @output_guardrail
@@ -67,5 +67,30 @@ async def supplier_diversity_guardrail(
             "max_supplier_share": max_share,
             "tripped": tripped,
         },
+        tripwire_triggered=tripped,
+    )
+
+
+@output_guardrail
+async def stock_safety_guardrail(
+    ctx: RunContextWrapper[RunContext], agent: Agent, output: AllocationPlan
+) -> GuardrailFunctionOutput:
+    """Stock-safety guardrail for warehouse allocation: trip if the proposed
+    transfers would leave any source warehouse below its safety stock (risking a
+    stockout at the source). Computed from the plan + per-warehouse data in
+    context — not self-reported by the model."""
+    warehouses = (ctx.context.dataset or {}).get("warehouses", {})
+    post = {wh: data.get("on_hand", 0) for wh, data in warehouses.items()}
+    for t in output.transfers:
+        if t.from_warehouse in post:
+            post[t.from_warehouse] -= t.qty
+        post[t.to_warehouse] = post.get(t.to_warehouse, 0) + t.qty
+    violations = [
+        wh for wh, data in warehouses.items()
+        if post.get(wh, 0) < data.get("safety_stock", 0)
+    ]
+    tripped = len(violations) > 0
+    return GuardrailFunctionOutput(
+        output_info={"type": "stock_safety", "violations": violations, "tripped": tripped},
         tripwire_triggered=tripped,
     )

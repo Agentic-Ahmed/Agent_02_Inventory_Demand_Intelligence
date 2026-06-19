@@ -30,7 +30,11 @@ DATA_AGENT_INSTRUCTIONS = """You are a demand analyst for an e-commerce inventor
 For the requested SKU:
 1. Call get_sales_history to retrieve recent sales.
 2. Call get_external_signals for weather/trend/promo factors.
-3. Write a SHORT analysis in plain text (NO JSON): the recent demand level, any
+3. If the request gives a moving-average baseline, use it as your STARTING point
+   for total demand over the horizon. Adjust it up or down for trend, seasonality,
+   and the external signals, but stay close to it unless the data clearly
+   justifies a large change (it is usually a strong estimate on its own).
+4. Write a SHORT analysis in plain text (NO JSON): the recent demand level, any
    trend/seasonality, how volatile the data is, your point estimate of TOTAL
    demand over the requested horizon, and a rough confidence in [0,1] (use a
    lower value when the history is volatile or sparse).
@@ -77,12 +81,24 @@ async def run_forecast_pipeline(
     horizon_days: int,
     run_ctx,
     session=None,
+    baseline_units: int | None = None,
 ) -> Forecast:
     """Phase 1 (tools) -> Phase 2 (structured). Guardrail tripwires propagate
-    to the caller, which routes them to the human-approval path."""
+    to the caller, which routes them to the human-approval path.
+
+    `baseline_units`: an optional moving-average projection for the horizon. When
+    given, it is handed to the data agent as a starting anchor (LLMs forecast raw
+    numbers poorly from scratch; anchoring on a simple baseline cuts error a lot).
+    """
+    anchor = ""
+    if baseline_units is not None:
+        anchor = (
+            f" A simple moving-average baseline projects about {baseline_units} "
+            f"units over the next {horizon_days} days; use it as your starting estimate."
+        )
     analysis = await Runner.run(
         data_agent,
-        f"Forecast {horizon_days}-day demand for SKU {sku}.",
+        f"Forecast {horizon_days}-day demand for SKU {sku}.{anchor}",
         context=run_ctx,
         session=session,
     )

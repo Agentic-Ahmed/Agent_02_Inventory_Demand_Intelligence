@@ -34,3 +34,18 @@ class ReorderDecision(BaseModel):
         ge=0.0, le=1.0, description="Chosen supplier's share of category spend"
     )
     reasoning: str = Field(default="", description="Brief explanation of the decision")
+
+
+class StockTransfer(BaseModel):
+    """A single inter-warehouse stock movement."""
+    from_warehouse: str
+    to_warehouse: str
+    qty: int = Field(ge=0)
+
+
+class AllocationPlan(BaseModel):
+    """Inventory rebalancing plan from the Warehouse Allocation Agent."""
+    sku: str
+    transfers: list[StockTransfer] = Field(default_factory=list)
+    rebalance_units: int = Field(ge=0, default=0, description="Total units moved across all transfers")
+    reasoning: str = Field(default="", description="Brief explanation of the plan")
