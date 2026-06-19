@@ -46,6 +46,7 @@ from ..agents.forecasting_agent import (
 )
 from ..models.schemas import Forecast
 from ..testing.dummy_data import generate_datasets
+from ..testing.kaggle_data import download_store_item_csv, load_store_item_datasets
 from ..testing.fake_model import FakeModel
 
 EVAL_MODEL = "gemini-2.5-flash"  # cheaper tier for the bulk eval (per decision)
@@ -97,7 +98,10 @@ def _mock_agents_for(ds: dict):
 async def _process_one(ds, run_ctx, data_agent, formatter) -> dict:
     """Run one dataset through the pipeline; return a checkpoint record."""
     try:
-        forecast = await run_forecast_pipeline(data_agent, formatter, ds["sku"], 7, run_ctx)
+        forecast = await run_forecast_pipeline(
+            data_agent, formatter, ds["sku"], 7, run_ctx,
+            baseline_units=ds["mock_predicted_units"],
+        )
         if isinstance(forecast, Forecast):
             gt = ds["ground_truth_7d"]
             mape = abs(forecast.predicted_units - gt) / gt * 100.0 if gt > 0 else None
@@ -117,9 +121,19 @@ async def _process_one(ds, run_ctx, data_agent, formatter) -> dict:
         return {"outcome": "error", "detail": f"{type(exc).__name__}: {str(exc)[:120]}"}
 
 
-async def run_eval(live: bool, limit=None, sleep_s=0.0, resume=False, max_live=None, reset=False) -> dict:
+def _load_datasets(source: str, csv_path=None, n: int = 50) -> list[dict]:
+    """Synthetic generator (default) or real Kaggle store-item series."""
+    if source == "kaggle":
+        path = csv_path or download_store_item_csv()
+        return load_store_item_datasets(n, path)
+    return generate_datasets(n)
+
+
+async def run_eval(live: bool, limit=None, sleep_s=0.0, resume=False, max_live=None,
+                   reset=False, source="synthetic", csv_path=None) -> dict:
     mode = "live" if live else "mock"
-    datasets = generate_datasets(50)
+    mode = f"{mode}-{source}" if source != "synthetic" else mode
+    datasets = _load_datasets(source, csv_path)
     if limit:
         datasets = datasets[:limit]
     tenant = TenantContext(tenant_id="acme")
@@ -185,6 +199,7 @@ async def run_eval(live: bool, limit=None, sleep_s=0.0, resume=False, max_live=N
 
     return {
         "mode": mode,
+        "live": live,
         "n_datasets": len(datasets),
         "counts": counts,
         "completed": sum(counts[k] for k in TERMINAL),
@@ -249,13 +264,13 @@ def print_report(report: dict, session_items: int, scope_blocked: tuple[int, int
     print("-" * 66)
     if report["avg_mape"] is not None:
         target = "PASS" if report["avg_mape"] < 12.0 else "OVER"
-        label = "MAPE vs ground truth" if report["mode"] == "live" else "Mock baseline MAPE"
+        label = "MAPE vs ground truth" if report.get("live") else "Mock baseline MAPE"
         print(f"  {label} ... {report['avg_mape']:.2f}%  (target < 12% -> {target})  [n={report['n_scored']}]")
     print(f"  Wall time ................ {report['elapsed_s']}s")
     print(f"  Checkpoint ............... {os.path.relpath(report['checkpoint'])}")
     print("-" * 66)
     print("  SDK features exercised:")
-    print(f"    - Function tools (Phase 1) ....... {'invoked live' if report['mode'] == 'live' else 'registered'}")
+    print(f"    - Function tools (Phase 1) ....... {'invoked live' if report.get('live') else 'registered'}")
     print(f"    - Structured output (Phase 2) .... {c['ok']} valid Forecasts")
     print(f"    - Output guardrail (confidence) .. {c['flagged_low_confidence']} trips")
     print(f"    - Input guardrail (freshness) .... {c['blocked_stale']} trips")
@@ -275,6 +290,7 @@ def _arg_value(flag: str, default, cast):
 
 async def main() -> None:
     live = "--live" in sys.argv
+    source = "kaggle" if "--kaggle" in sys.argv else "synthetic"
     report = await run_eval(
         live,
         limit=_arg_value("--limit", None, int),
@@ -282,6 +298,8 @@ async def main() -> None:
         resume="--resume" in sys.argv,
         max_live=_arg_value("--max-live", None, int),
         reset="--reset" in sys.argv,
+        source=source,
+        csv_path=_arg_value("--csv", None, str),
     )
     session_items = await session_continuity_check()
     scope_blocked = await scope_guardrail_check()

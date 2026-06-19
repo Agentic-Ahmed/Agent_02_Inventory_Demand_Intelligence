@@ -21,3 +21,9 @@ conversations.db
 backend/.eval_state/
 *.log
 
+# Downloaded datasets (re-downloadable from Kaggle; keep the repo lean)
+backend/.data/
+
+# Stray doc-extraction output
+extracted_doc.txt
+
