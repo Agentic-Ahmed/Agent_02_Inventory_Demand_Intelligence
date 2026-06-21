@@ -294,3 +294,16 @@ def generate_anomaly_datasets(n: int = 50, seed: int = 17) -> list[dict]:
             }
         )
     return datasets
+
+
+def make_orchestrator_bundle(sku: str = "SKU-1000") -> dict:
+    """Per-SKU data bundle the Orchestrator's specialist tools read from the run
+    context (one slice per specialist). Mock dev data; real sources in prod.
+    Picks 'action' buckets so each specialist returns something interesting
+    (incl. a high-severity anomaly that escalates)."""
+    f = generate_datasets(1)[0]; f["sku"] = sku; f["data_age_hours"] = 0.5
+    r = generate_reorder_datasets(8)[5]; r["sku"] = sku; r["mock_decision"]["sku"] = sku
+    w = generate_warehouse_datasets(4)[2]; w["sku"] = sku; w["mock_decision"]["sku"] = sku
+    m = generate_markdown_datasets(4)[2]; m["sku"] = sku; m["mock_decision"]["sku"] = sku
+    a = generate_anomaly_datasets(4)[2]; a["sku"] = sku; a["mock_decision"]["sku"] = sku
+    return {"forecast": f, "reorder": r, "warehouse": w, "markdown": m, "anomaly": a}
