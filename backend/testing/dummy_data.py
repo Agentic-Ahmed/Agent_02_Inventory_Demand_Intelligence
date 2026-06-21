@@ -241,3 +241,56 @@ def generate_markdown_datasets(n: int = 50, seed: int = 13) -> list[dict]:
             }
         )
     return datasets
+
+
+def generate_anomaly_datasets(n: int = 50, seed: int = 17) -> list[dict]:
+    """Deterministic anomaly-detection scenarios for the Anomaly Agent eval.
+    Buckets (clean, one outcome each):
+      bucket 0      -> no anomaly        (recent readings near baseline)
+      bucket 1      -> minor anomaly     (moderate spike, severity medium -> logged)
+      bucket 2      -> demand spike      (severe spike, severity high -> guardrail trips)
+      bucket 3      -> data error        (impossible value, severity high -> guardrail trips)
+    Each carries a `mock_decision` (AnomalyReport) the FakeModel emits in mock mode.
+    """
+    rng = random.Random(seed)
+    datasets: list[dict] = []
+    for i in range(n):
+        sku = f"SKU-{5000 + i}"
+        bucket = i % 4
+        mean = rng.randint(80, 160)
+        std = max(5, int(mean * 0.1))
+        expected_range = [int(mean - 4 * std), int(mean + 4 * std)]
+        on_hand = rng.randint(300, 800)
+
+        if bucket == 0:  # normal
+            recent = [mean + rng.randint(-std, std) for _ in range(5)]
+            decision = {"is_anomaly": False, "anomaly_type": "none", "severity": "none",
+                        "recommended_action": "monitor", "reasoning": "within normal range"}
+        elif bucket == 1:  # moderate spike -> medium
+            recent = [mean + rng.randint(2 * std, 3 * std) for _ in range(5)]
+            decision = {"is_anomaly": True, "anomaly_type": "demand_spike", "severity": "medium",
+                        "recommended_action": "escalate", "reasoning": "moderate spike vs baseline"}
+        elif bucket == 2:  # severe spike -> high
+            recent = [mean + rng.randint(8 * std, 12 * std) for _ in range(5)]
+            decision = {"is_anomaly": True, "anomaly_type": "demand_spike", "severity": "high",
+                        "recommended_action": "halt_autonomous", "reasoning": "severe demand spike"}
+        else:  # data error -> high (impossible negative stock)
+            recent = [mean + rng.randint(-std, std) for _ in range(5)]
+            on_hand = -rng.randint(10, 100)
+            decision = {"is_anomaly": True, "anomaly_type": "data_error", "severity": "high",
+                        "recommended_action": "halt_autonomous", "reasoning": "negative on-hand stock"}
+
+        decision["sku"] = sku
+        datasets.append(
+            {
+                "sku": sku,
+                "data_age_hours": 0.5,
+                "recent_window": recent,
+                "baseline_mean": mean,
+                "baseline_std": std,
+                "on_hand": on_hand,
+                "expected_range": expected_range,
+                "mock_decision": decision,
+            }
+        )
+    return datasets

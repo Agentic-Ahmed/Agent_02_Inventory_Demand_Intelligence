@@ -60,3 +60,18 @@ class MarkdownPlan(BaseModel):
     )
     new_price: float = Field(ge=0.0, description="Resulting price = current_price * (1 - markdown_pct)")
     reasoning: str = Field(default="", description="Brief explanation of the markdown decision")
+
+
+class AnomalyReport(BaseModel):
+    """Anomaly assessment from the Anomaly Detection Agent (Agent #5)."""
+    sku: str
+    is_anomaly: bool = Field(description="Whether an anomaly was detected for this SKU")
+    anomaly_type: str = Field(
+        default="none",
+        description="none | demand_spike | demand_collapse | data_error | price_anomaly",
+    )
+    severity: str = Field(default="none", description="none | low | medium | high")
+    recommended_action: str = Field(
+        default="monitor", description="monitor | escalate | halt_autonomous"
+    )
+    reasoning: str = Field(default="", description="Brief explanation of the assessment")

@@ -13,7 +13,7 @@ from agents import (
 )
 
 from ..core.context import RunContext
-from ..models.schemas import Forecast, ReorderDecision, AllocationPlan, MarkdownPlan
+from ..models.schemas import Forecast, ReorderDecision, AllocationPlan, MarkdownPlan, AnomalyReport
 
 
 @output_guardrail
@@ -110,6 +110,25 @@ async def markdown_depth_guardrail(
             "type": "markdown_depth",
             "markdown_pct": output.markdown_pct,
             "max_markdown": max_md,
+            "tripped": tripped,
+        },
+        tripwire_triggered=tripped,
+    )
+
+
+@output_guardrail
+async def anomaly_severity_guardrail(
+    ctx: RunContextWrapper[RunContext], agent: Agent, output: AnomalyReport
+) -> GuardrailFunctionOutput:
+    """Anomaly severity guardrail (Agent #5 is the always-on monitoring guardrail):
+    a HIGH-severity anomaly trips the wire so autonomous downstream actions are
+    halted and a human reviews. Lower severities are logged but don't halt."""
+    tripped = output.is_anomaly and output.severity == "high"
+    return GuardrailFunctionOutput(
+        output_info={
+            "type": "anomaly_severity",
+            "anomaly_type": output.anomaly_type,
+            "severity": output.severity,
             "tripped": tripped,
         },
         tripwire_triggered=tripped,
