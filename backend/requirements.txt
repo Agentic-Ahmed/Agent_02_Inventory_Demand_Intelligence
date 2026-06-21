@@ -1,3 +1,6 @@
 openai-agents[litellm]
 pydantic
 python-dotenv
+truststore
+fastapi
+uvicorn[standard]
