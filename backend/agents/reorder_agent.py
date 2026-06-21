@@ -18,6 +18,7 @@ AP2 payment hook.
 from agents import Agent, ModelSettings, Runner
 
 from ..core.config import GEMINI, AGENT_MODEL, agent_key
+from ..core.fallback_model import agent_fallback_model
 from ..models.schemas import ReorderDecision
 from ..tools.reorder_tools import (
     get_current_inventory,
@@ -47,7 +48,7 @@ one-sentence reasoning."""
 
 def build_reorder_data_agent(model=None) -> Agent:
     if model is None:
-        model = GEMINI(AGENT_MODEL["reorder"], agent_key("reorder"))
+        model = agent_fallback_model("reorder", AGENT_MODEL["reorder"], agent_key("reorder"))
     return Agent(
         name="Reorder & Supplier - Data Agent",
         instructions=DATA_AGENT_INSTRUCTIONS,
@@ -60,7 +61,7 @@ def build_reorder_data_agent(model=None) -> Agent:
 
 def build_reorder_formatter_agent(model=None) -> Agent:
     if model is None:
-        model = GEMINI(AGENT_MODEL["reorder"], agent_key("reorder"))
+        model = agent_fallback_model("reorder", AGENT_MODEL["reorder"], agent_key("reorder"))
     return Agent(
         name="Reorder & Supplier - Formatter",
         instructions=FORMATTER_INSTRUCTIONS,
