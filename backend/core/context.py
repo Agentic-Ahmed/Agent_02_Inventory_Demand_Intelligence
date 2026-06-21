@@ -18,6 +18,7 @@ class TenantContext:
     max_supplier_share: float = 0.60          # supplier diversity guardrail (#4)
     max_data_age_hours: float = 2.0           # data freshness guardrail (#5)
     hard_po_ceiling: float = 50_000.0         # tool-level hard limit: never auto-execute a PO above this
+    hard_markdown_ceiling: float = 0.70       # tool-level hard limit: never apply a markdown deeper than this
 
 
 @dataclass

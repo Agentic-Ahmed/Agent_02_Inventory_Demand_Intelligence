@@ -49,3 +49,14 @@ class AllocationPlan(BaseModel):
     transfers: list[StockTransfer] = Field(default_factory=list)
     rebalance_units: int = Field(ge=0, default=0, description="Total units moved across all transfers")
     reasoning: str = Field(default="", description="Brief explanation of the plan")
+
+
+class MarkdownPlan(BaseModel):
+    """Price-markdown plan from the Markdown / Pricing Agent (Agent #4)."""
+    sku: str
+    current_price: float = Field(ge=0.0, description="Current unit price before markdown")
+    markdown_pct: float = Field(
+        ge=0.0, le=1.0, description="Markdown depth as a fraction (0.25 = 25% off; 0 = no markdown)"
+    )
+    new_price: float = Field(ge=0.0, description="Resulting price = current_price * (1 - markdown_pct)")
+    reasoning: str = Field(default="", description="Brief explanation of the markdown decision")

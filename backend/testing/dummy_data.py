@@ -191,3 +191,53 @@ def generate_warehouse_datasets(n: int = 50, seed: int = 11) -> list[dict]:
             }
         )
     return datasets
+
+
+def generate_markdown_datasets(n: int = 50, seed: int = 13) -> list[dict]:
+    """Deterministic markdown/pricing scenarios for the Markdown Agent eval.
+    Buckets (clean, one outcome each):
+      bucket 0      -> no action          (healthy sell-through, fresh stock)
+      bucket 1      -> depth trip         (markdown > 40% -> markdown_depth guardrail)
+      bucket 2, 3   -> auto-markdown      (0 < markdown <= 40%, applied autonomously)
+    Each carries a `mock_decision` (MarkdownPlan) the FakeModel emits in mock mode.
+    """
+    rng = random.Random(seed)
+    datasets: list[dict] = []
+    for i in range(n):
+        sku = f"SKU-{4000 + i}"
+        bucket = i % 4
+        current_price = round(rng.uniform(10, 200), 2)
+
+        if bucket == 0:  # selling well -> no markdown
+            on_hand, days_of_supply = 120, 18
+            sell_through, age_days = round(rng.uniform(0.80, 0.95), 2), rng.randint(5, 20)
+            markdown_pct = 0.0
+        elif bucket == 1:  # badly overstocked + stale -> deep cut trips the 40% guardrail
+            on_hand, days_of_supply = 900, rng.randint(120, 200)
+            sell_through, age_days = round(rng.uniform(0.05, 0.15), 2), rng.randint(90, 180)
+            markdown_pct = round(rng.uniform(0.45, 0.60), 2)
+        else:  # moderately slow -> shallow auto-markdown within 40%
+            on_hand, days_of_supply = 300, rng.randint(45, 80)
+            sell_through, age_days = round(rng.uniform(0.30, 0.50), 2), rng.randint(30, 60)
+            markdown_pct = round(rng.uniform(0.10, 0.35), 2)
+
+        new_price = round(current_price * (1 - markdown_pct), 2)
+        datasets.append(
+            {
+                "sku": sku,
+                "data_age_hours": 0.5,
+                "current_price": current_price,
+                "on_hand": on_hand,
+                "days_of_supply": days_of_supply,
+                "sell_through_rate": sell_through,
+                "age_days": age_days,
+                "mock_decision": {
+                    "sku": sku,
+                    "current_price": current_price,
+                    "markdown_pct": markdown_pct,
+                    "new_price": new_price,
+                    "reasoning": "mock markdown plan",
+                },
+            }
+        )
+    return datasets

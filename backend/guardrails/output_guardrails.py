@@ -13,7 +13,7 @@ from agents import (
 )
 
 from ..core.context import RunContext
-from ..models.schemas import Forecast, ReorderDecision, AllocationPlan
+from ..models.schemas import Forecast, ReorderDecision, AllocationPlan, MarkdownPlan
 
 
 @output_guardrail
@@ -92,5 +92,25 @@ async def stock_safety_guardrail(
     tripped = len(violations) > 0
     return GuardrailFunctionOutput(
         output_info={"type": "stock_safety", "violations": violations, "tripped": tripped},
+        tripwire_triggered=tripped,
+    )
+
+
+@output_guardrail
+async def markdown_depth_guardrail(
+    ctx: RunContextWrapper[RunContext], agent: Agent, output: MarkdownPlan
+) -> GuardrailFunctionOutput:
+    """Markdown depth guardrail (blueprint S5 #2): auto-approve markdowns up to
+    max_markdown (40%); trip above it so the price change is routed to VP/human
+    approval rather than applied autonomously."""
+    max_md = ctx.context.tenant.max_markdown
+    tripped = output.markdown_pct > max_md
+    return GuardrailFunctionOutput(
+        output_info={
+            "type": "markdown_depth",
+            "markdown_pct": output.markdown_pct,
+            "max_markdown": max_md,
+            "tripped": tripped,
+        },
         tripwire_triggered=tripped,
     )
