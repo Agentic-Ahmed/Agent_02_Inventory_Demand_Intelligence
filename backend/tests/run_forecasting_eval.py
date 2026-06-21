@@ -38,6 +38,7 @@ from agents import (
 )
 
 from ..core.config import GEMINI, agent_key
+from ..core.fallback_model import forecasting_model
 from ..core.context import TenantContext, RunContext
 from ..agents.forecasting_agent import (
     build_forecasting_data_agent,
@@ -147,8 +148,8 @@ async def run_eval(live: bool, limit=None, sleep_s=0.0, resume=False, max_live=N
         if not key:
             print("\n[LIVE SKIPPED] GEMINI_API_KEY_FORECASTING not set in backend/.env.\n")
             return {}
-        live_data_agent = build_forecasting_data_agent(model=GEMINI(EVAL_MODEL, key))
-        live_formatter = build_forecasting_formatter_agent(model=GEMINI(EVAL_MODEL, key))
+        live_data_agent = build_forecasting_data_agent(model=forecasting_model(EVAL_MODEL, key))
+        live_formatter = build_forecasting_formatter_agent(model=forecasting_model(EVAL_MODEL, key))
 
     live_used = 0
     ran_this_session = 0

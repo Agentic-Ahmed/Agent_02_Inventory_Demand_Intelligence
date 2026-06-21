@@ -17,6 +17,7 @@ layers, sessions) while staying within Gemini's constraints.
 from agents import Agent, ModelSettings, Runner
 
 from ..core.config import GEMINI, AGENT_MODEL, agent_key
+from ..core.fallback_model import forecasting_model
 from ..models.schemas import Forecast
 from ..tools.forecasting_tools import (
     get_sales_history,
@@ -47,9 +48,12 @@ one-sentence reasoning. Use the analyst's point estimate and confidence."""
 
 
 def build_forecasting_data_agent(model=None) -> Agent:
-    """Phase 1: tool-using analyst. No output_type (so function calling works)."""
+    """Phase 1: tool-using analyst. No output_type (so function calling works).
+
+    Default model is the fallback chain (Gemini -> Groq -> OpenRouter -> Cerebras)
+    so Agent 1 keeps forecasting after Gemini's free quota exhausts."""
     if model is None:
-        model = GEMINI(AGENT_MODEL["forecasting"], agent_key("forecasting"))
+        model = forecasting_model(AGENT_MODEL["forecasting"], agent_key("forecasting"))
     return Agent(
         name="Demand Forecasting - Data Agent",
         instructions=DATA_AGENT_INSTRUCTIONS,
@@ -61,9 +65,11 @@ def build_forecasting_data_agent(model=None) -> Agent:
 
 
 def build_forecasting_formatter_agent(model=None) -> Agent:
-    """Phase 2: structured formatter. output_type=Forecast, no tools."""
+    """Phase 2: structured formatter. output_type=Forecast, no tools.
+
+    Default model is the fallback chain (Agent 1 only)."""
     if model is None:
-        model = GEMINI(AGENT_MODEL["forecasting"], agent_key("forecasting"))
+        model = forecasting_model(AGENT_MODEL["forecasting"], agent_key("forecasting"))
     return Agent(
         name="Demand Forecasting - Formatter",
         instructions=FORMATTER_INSTRUCTIONS,
