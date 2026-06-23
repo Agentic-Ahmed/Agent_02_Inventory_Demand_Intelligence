@@ -27,3 +27,6 @@ backend/.data/
 # Stray doc-extraction output
 extracted_doc.txt
 
+# Third-party skills installed into .claude/skills (large; not part of the product)
+.claude/skills/
+
