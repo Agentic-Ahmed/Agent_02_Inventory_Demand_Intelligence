@@ -3,13 +3,13 @@
 This is the backend of the Approval Inbox screen (CLAUDE.md S8): when a money/price
 action or a low-confidence/critical result trips a guardrail, it is parked here for
 Approve / Reject rather than auto-executed. Persisted to a local SQLite file so the
-queue survives a server restart (mirrors the dev SQLiteSession). Swap for Postgres
-(per-tenant, row-level security) in prod (CLAUDE.md S2/S9).
+queue survives a server restart (mirrors the dev SQLiteSession). Each item carries
+the `required_role` of the agent that raised it; the route enforces who may resolve
+it (CLAUDE.md S9). Swap for Postgres (per-tenant, row-level security) in prod.
 
-The public interface (create / list / get / resolve + the item dict shape) is
-identical to the previous in-memory store, so routes and orchestration are unchanged.
-DB path is configurable via the APPROVALS_DB env var (default 'approvals.db'; tests
-pass ':memory:').
+The public interface (create / list / get / resolve + the item dict shape) is stable,
+so routes and orchestration stay in sync. DB path is configurable via APPROVALS_DB
+(default 'approvals.db'; tests pass ':memory:').
 """
 from __future__ import annotations
 
@@ -22,8 +22,8 @@ from datetime import datetime, timezone
 from typing import Any, Optional
 
 _COLUMNS = (
-    "id", "tenant_id", "action_type", "sku", "summary",
-    "detail", "status", "created_at", "resolved_at", "resolved_by",
+    "id", "tenant_id", "action_type", "sku", "summary", "detail",
+    "required_role", "status", "created_at", "resolved_at", "resolved_by",
 )
 
 
@@ -50,18 +50,23 @@ class ApprovalStore:
         with self._lock:
             self._conn.execute(
                 """CREATE TABLE IF NOT EXISTS approvals (
-                    id          TEXT PRIMARY KEY,
-                    tenant_id   TEXT NOT NULL,
-                    action_type TEXT NOT NULL,
-                    sku         TEXT NOT NULL,
-                    summary     TEXT NOT NULL,
-                    detail      TEXT NOT NULL,
-                    status      TEXT NOT NULL,
-                    created_at  TEXT NOT NULL,
-                    resolved_at TEXT,
-                    resolved_by TEXT
+                    id            TEXT PRIMARY KEY,
+                    tenant_id     TEXT NOT NULL,
+                    action_type   TEXT NOT NULL,
+                    sku           TEXT NOT NULL,
+                    summary       TEXT NOT NULL,
+                    detail        TEXT NOT NULL,
+                    required_role TEXT,
+                    status        TEXT NOT NULL,
+                    created_at    TEXT NOT NULL,
+                    resolved_at   TEXT,
+                    resolved_by   TEXT
                 )"""
             )
+            try:  # add the column to a pre-existing DB created before roles existed
+                self._conn.execute("ALTER TABLE approvals ADD COLUMN required_role TEXT")
+            except sqlite3.OperationalError:
+                pass  # column already present (fresh table) — fine
             self._conn.execute(
                 "CREATE INDEX IF NOT EXISTS idx_tenant_status "
                 "ON approvals(tenant_id, status, created_at)"
@@ -73,7 +78,7 @@ class ApprovalStore:
             self._conn.commit()
 
     def create(self, tenant_id: str, action_type: str, sku: str, summary: str,
-               detail: Optional[dict] = None) -> dict[str, Any]:
+               detail: Optional[dict] = None, required_role: Optional[str] = None) -> dict[str, Any]:
         item = {
             "id": uuid.uuid4().hex[:12],
             "tenant_id": tenant_id,
@@ -81,6 +86,7 @@ class ApprovalStore:
             "sku": sku,
             "summary": summary,
             "detail": detail or {},
+            "required_role": required_role,
             "status": "pending",
             "created_at": _now(),
             "resolved_at": None,
@@ -89,10 +95,10 @@ class ApprovalStore:
         with self._lock:
             self._conn.execute(
                 "INSERT INTO approvals "
-                "(id, tenant_id, action_type, sku, summary, detail, status, created_at, resolved_at, resolved_by) "
-                "VALUES (?,?,?,?,?,?,?,?,?,?)",
+                "(id, tenant_id, action_type, sku, summary, detail, required_role, status, created_at, resolved_at, resolved_by) "
+                "VALUES (?,?,?,?,?,?,?,?,?,?,?)",
                 (item["id"], tenant_id, action_type, sku, summary, json.dumps(item["detail"]),
-                 "pending", item["created_at"], None, None),
+                 required_role, "pending", item["created_at"], None, None),
             )
             self._conn.commit()
         return item

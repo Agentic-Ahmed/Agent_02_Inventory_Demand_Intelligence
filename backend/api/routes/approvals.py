@@ -1,11 +1,14 @@
 """/api/approvals -- the guardrail escalation queue (CLAUDE.md S8 approval inbox).
 
 Money/price actions and low-confidence/critical results that tripped a guardrail
-land here for an auditable Approve / Reject decision.
+land here for an auditable Approve / Reject decision. Each item is owned by the role
+of the agent that raised it (CLAUDE.md S9): only that role -- or the Inventory
+Manager (the lead) -- may resolve it.
 """
 from fastapi import APIRouter, Depends, HTTPException
 
 from ...core.context import TenantContext
+from ...core.roles import can_approve
 from ..schemas import ApprovalOut, ApprovalAction
 from ..deps import get_tenant
 from ..approval_store import STORE
@@ -25,6 +28,12 @@ async def resolve_approval(
     item = STORE.get(item_id)
     if item is None or item["tenant_id"] != tenant.tenant_id:
         raise HTTPException(status_code=404, detail="approval item not found")
+    if not can_approve(tenant.user_role, item.get("required_role")):
+        raise HTTPException(
+            status_code=403,
+            detail=(f"role '{tenant.user_role}' cannot approve a "
+                    f"'{item.get('required_role')}' action — needs that role or the inventory manager"),
+        )
     new_status = "approved" if body.action == "approve" else "rejected"
     resolved = STORE.resolve(item_id, new_status, body.by, body.note)
     if resolved is None:

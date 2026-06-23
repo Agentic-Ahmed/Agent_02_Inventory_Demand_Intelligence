@@ -22,6 +22,7 @@ class ApprovalOut(BaseModel):
     sku: str
     summary: str
     detail: dict[str, Any] = Field(default_factory=dict)
+    required_role: Optional[str] = Field(default=None, description="Role that may approve this item")
     status: str
     created_at: str
     resolved_at: Optional[str] = None

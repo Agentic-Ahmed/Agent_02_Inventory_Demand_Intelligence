@@ -9,6 +9,7 @@ from fastapi import Header
 from typing import Optional
 
 from ..core.context import TenantContext, RunContext
+from ..core.tenants import build_tenant_context
 from ..testing.dummy_data import make_orchestrator_bundle
 
 
@@ -16,7 +17,9 @@ def get_tenant(
     x_tenant_id: Optional[str] = Header(default="acme"),
     x_user_role: Optional[str] = Header(default="planner"),
 ) -> TenantContext:
-    return TenantContext(tenant_id=x_tenant_id or "acme", user_role=x_user_role or "planner")
+    """Per-request tenant: the tenant's OWN thresholds + the caller's role. Dev reads
+    X-Tenant-Id / X-User-Role headers; prod from Clerk/Supabase auth (CLAUDE.md S9)."""
+    return build_tenant_context(x_tenant_id or "acme", x_user_role or "planner")
 
 
 def run_context_for(tenant: TenantContext, sku: str) -> RunContext:

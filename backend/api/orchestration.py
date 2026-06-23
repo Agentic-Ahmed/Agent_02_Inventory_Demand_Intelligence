@@ -1,8 +1,9 @@
 """Run the orchestrator for an API request and collect tool calls + escalations.
 
 When a specialist tool returns status 'escalated_to_human' (a guardrail tripped),
-an item is parked in the approval queue (STORE) so the Approval Inbox can surface
-it for Approve/Reject -- money/price actions never auto-execute past a guardrail.
+an item is parked in the approval queue (STORE), tagged with the role of the agent
+that raised it, so the Approval Inbox can surface it for the right person to
+Approve / Reject -- money/price actions never auto-execute past a guardrail.
 
 Two entry points share the same escalation logic:
   - run_orchestrator_collect: runs the turn and returns the final result in one shot.
@@ -15,6 +16,7 @@ from agents import Runner
 
 from ..agents.orchestrator import build_orchestrator
 from ..core.context import TenantContext
+from ..core.roles import required_role_for
 from .deps import run_context_for
 from .approval_store import STORE
 
@@ -40,10 +42,8 @@ def _tool_output_dict(item: Any) -> Optional[dict]:
 
 
 def _maybe_escalate(d: Optional[dict], tenant: TenantContext, sku: str) -> Optional[str]:
-    """If a specialist output escalated to a human, park it in the approval queue.
-
-    Returns the new approval item id, or None if there was nothing to escalate.
-    """
+    """If a specialist output escalated to a human, park it in the approval queue,
+    tagged with the owning role. Returns the new approval item id, or None."""
     if not (isinstance(d, dict) and d.get("status") == "escalated_to_human"):
         return None
     spec = d.get("specialist", "review")
@@ -52,6 +52,7 @@ def _maybe_escalate(d: Optional[dict], tenant: TenantContext, sku: str) -> Optio
         f"{spec} action for {d.get('sku', sku)} needs human approval "
         f"({d.get('reason', 'guardrail tripped')})",
         d,
+        required_role=required_role_for(spec),
     )
     return item["id"]
 
