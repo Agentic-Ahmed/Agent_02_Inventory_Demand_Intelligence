@@ -47,3 +47,13 @@ class TriggerResponse(BaseModel):
     sku: str
     answer: Optional[str] = None
     escalations: list[str] = Field(default_factory=list)
+
+
+class AuditOut(BaseModel):
+    id: str
+    tenant_id: str
+    ts: str
+    event_type: str
+    actor: str = ""
+    summary: str = ""
+    detail: dict[str, Any] = Field(default_factory=dict)

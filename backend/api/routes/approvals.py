@@ -3,7 +3,7 @@
 Money/price actions and low-confidence/critical results that tripped a guardrail
 land here for an auditable Approve / Reject decision. Each item is owned by the role
 of the agent that raised it (CLAUDE.md S9): only that role -- or the Inventory
-Manager (the lead) -- may resolve it.
+Manager (the lead) -- may resolve it. Every resolution is written to the audit trail.
 """
 from fastapi import APIRouter, Depends, HTTPException
 
@@ -12,6 +12,7 @@ from ...core.roles import can_approve
 from ..schemas import ApprovalOut, ApprovalAction
 from ..deps import get_tenant
 from ..approval_store import STORE
+from ..audit_store import AUDIT
 
 router = APIRouter(prefix="/api/approvals", tags=["approvals"])
 
@@ -38,4 +39,7 @@ async def resolve_approval(
     resolved = STORE.resolve(item_id, new_status, body.by, body.note)
     if resolved is None:
         raise HTTPException(status_code=409, detail="approval item already resolved")
+    AUDIT.log(tenant.tenant_id, "approval_resolved", body.by,
+              f"{new_status} {item['action_type']} for {item['sku']}",
+              {"approval_id": item_id, "status": new_status, "role": tenant.user_role, "note": body.note})
     return resolved

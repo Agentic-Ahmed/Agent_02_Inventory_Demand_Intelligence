@@ -2,8 +2,11 @@
 
 When a specialist tool returns status 'escalated_to_human' (a guardrail tripped),
 an item is parked in the approval queue (STORE), tagged with the role of the agent
-that raised it, so the Approval Inbox can surface it for the right person to
-Approve / Reject -- money/price actions never auto-execute past a guardrail.
+that raised it, and recorded in the audit trail. Money/price actions never
+auto-execute past a guardrail.
+
+Audit trail (CLAUDE.md S4/S8): every run is driven with AuditHooks, so agent runs +
+specialist tool calls land in the audit log; escalations are logged here too.
 
 Two entry points share the same escalation logic:
   - run_orchestrator_collect: runs the turn and returns the final result in one shot.
@@ -17,8 +20,10 @@ from agents import Runner
 from ..agents.orchestrator import build_orchestrator
 from ..core.context import TenantContext
 from ..core.roles import required_role_for
+from ..observability.audit_hooks import AuditHooks
 from .deps import run_context_for
 from .approval_store import STORE
+from .audit_store import AUDIT
 
 _ACTION_TYPE = {
     "forecasting": "forecast_review",
@@ -42,18 +47,20 @@ def _tool_output_dict(item: Any) -> Optional[dict]:
 
 
 def _maybe_escalate(d: Optional[dict], tenant: TenantContext, sku: str) -> Optional[str]:
-    """If a specialist output escalated to a human, park it in the approval queue,
-    tagged with the owning role. Returns the new approval item id, or None."""
+    """If a specialist output escalated to a human, park it in the approval queue
+    (tagged with the owning role) and record it in the audit trail. Returns the new
+    approval item id, or None."""
     if not (isinstance(d, dict) and d.get("status") == "escalated_to_human"):
         return None
     spec = d.get("specialist", "review")
+    item_sku = d.get("sku", sku)
+    summary = f"{spec} action for {item_sku} needs human approval ({d.get('reason', 'guardrail tripped')})"
     item = STORE.create(
-        tenant.tenant_id, _ACTION_TYPE.get(spec, "review"), d.get("sku", sku),
-        f"{spec} action for {d.get('sku', sku)} needs human approval "
-        f"({d.get('reason', 'guardrail tripped')})",
-        d,
+        tenant.tenant_id, _ACTION_TYPE.get(spec, "review"), item_sku, summary, d,
         required_role=required_role_for(spec),
     )
+    AUDIT.log(tenant.tenant_id, "escalation", spec, summary,
+              {"approval_id": item["id"], "sku": item_sku, "reason": d.get("reason")})
     return item["id"]
 
 
@@ -63,7 +70,8 @@ async def run_orchestrator_collect(
     """Returns (final_answer, tools_called, escalation_item_ids)."""
     ctx = run_context_for(tenant, sku)
     orch = orchestrator or build_orchestrator()
-    result = await Runner.run(orch, message, context=ctx, max_turns=20)
+    result = await Runner.run(orch, message, context=ctx, max_turns=20,
+                              hooks=AuditHooks(tenant.tenant_id, sku))
 
     tools_called: list[str] = []
     escalation_ids: list[str] = []
@@ -96,7 +104,8 @@ async def run_orchestrator_stream(
     tools_called: list[str] = []
     escalation_ids: list[str] = []
 
-    result = Runner.run_streamed(orch, message, context=ctx, max_turns=20)
+    result = Runner.run_streamed(orch, message, context=ctx, max_turns=20,
+                                 hooks=AuditHooks(tenant.tenant_id, sku))
     async for event in result.stream_events():
         if event.type == "raw_response_event":
             data = getattr(event, "data", None)

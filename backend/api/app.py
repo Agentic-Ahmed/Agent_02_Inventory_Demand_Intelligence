@@ -1,19 +1,19 @@
 """FastAPI application for the Inventory & Demand Intelligence System (CLAUDE.md S10).
 
-Serves the orchestrator + approval queue + triggers + tenant settings to the Web UI.
-Run locally:
+Serves the orchestrator + approval queue + triggers + tenant settings + audit trail
+to the Web UI. Run locally:
     uvicorn backend.api.app:app --reload
 Deployed to Google Cloud Run in prod (CLAUDE.md S2).
 """
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .routes import chat, approvals, triggers, tenant
+from .routes import chat, approvals, triggers, tenant, audit
 
 app = FastAPI(
     title="Inventory & Demand Intelligence API",
     version="0.1.0",
-    description="Orchestrator chat, guardrail approval queue, scheduled/event triggers, tenant settings.",
+    description="Orchestrator chat, guardrail approval queue, triggers, tenant settings, audit trail.",
 )
 
 # Dev CORS: allow the Next.js frontend (localhost) to call the API. Lock down in prod.
@@ -35,3 +35,4 @@ app.include_router(chat.router)
 app.include_router(approvals.router)
 app.include_router(triggers.router)
 app.include_router(tenant.router)
+app.include_router(audit.router)
