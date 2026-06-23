@@ -4,3 +4,5 @@ python-dotenv
 truststore
 fastapi
 uvicorn[standard]
+# Auth: Clerk session-token (JWT) verification — only needed once Clerk is switched on
+pyjwt[crypto]
