@@ -158,13 +158,27 @@ clearly flag that it needs human approval and do NOT claim the action was execut
 Stay strictly within inventory / demand / supply / pricing scope."""
 
 
+def orchestrator_instructions(ctx: RunContextWrapper[RunContext], agent: Agent) -> str:
+    """Dynamic instructions (CLAUDE.md S4): inject this tenant's guardrail thresholds so
+    the orchestrator knows the limits and can flag proactively when an action crosses one."""
+    t = ctx.context.tenant
+    return ORCHESTRATOR_INSTRUCTIONS + (
+        f"\n\nTenant '{t.tenant_id}' operates under these limits — respect them and call them "
+        f"out proactively when an action would cross one:\n"
+        f"- Purchase orders auto-approve under ${t.po_auto_approve_limit:,.0f}; above that needs human approval.\n"
+        f"- Markdowns deeper than {t.max_markdown:.0%} need approval.\n"
+        f"- Forecasts below {t.min_confidence:.0%} confidence go to human review.\n"
+        f"- No single supplier above {t.max_supplier_share:.0%} of category spend."
+    )
+
+
 def build_orchestrator(model=None) -> Agent:
     """The coordinator agent (gemini-2.5-pro by default; fallback-ready)."""
     if model is None:
         model = agent_fallback_model("orchestrator", AGENT_MODEL["orchestrator"], agent_key("orchestrator"))
     return Agent(
         name="Inventory Orchestrator",
-        instructions=ORCHESTRATOR_INSTRUCTIONS,
+        instructions=orchestrator_instructions,
         model=model,
         model_settings=ModelSettings(include_usage=True),
         tools=SPECIALIST_TOOLS,
