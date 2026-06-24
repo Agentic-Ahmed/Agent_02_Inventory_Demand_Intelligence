@@ -57,3 +57,13 @@ class AuditOut(BaseModel):
     actor: str = ""
     summary: str = ""
     detail: dict[str, Any] = Field(default_factory=dict)
+
+
+class UsageOut(BaseModel):
+    tenant_id: str
+    agent_runs: int = 0
+    total_tokens: int = 0
+    tool_calls: int = 0
+    escalations: int = 0
+    approvals_resolved: int = 0
+    tokens_by_agent: dict[str, int] = Field(default_factory=dict)

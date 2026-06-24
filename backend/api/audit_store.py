@@ -66,6 +66,40 @@ class AuditLog:
             (tenant_id, max(1, min(limit, 1000))))
         return [_row_to_item(r) for r in (rows or [])]
 
+    def usage(self, tenant_id: str) -> dict[str, Any]:
+        """Per-tenant metering rolled up from the audit log (CLAUDE.md S4 per-tenant
+        metering): agent runs, total token usage (summed from agent_end events), and
+        decision/action counts. Computed in Python so it works on both backends."""
+        rows = self.db.execute(
+            "SELECT event_type, actor, detail FROM audit WHERE tenant_id=%s", (tenant_id,))
+        runs = tokens = tool_calls = escalations = approvals = 0
+        tokens_by_agent: dict[str, int] = {}
+        for r in (rows or []):
+            et = r.get("event_type")
+            d = r.get("detail")
+            detail = json.loads(d) if isinstance(d, str) and d else (d or {})
+            if et == "agent_end":
+                runs += 1
+                t = detail.get("total_tokens") or 0
+                tokens += t
+                key = r.get("actor") or "agent"
+                tokens_by_agent[key] = tokens_by_agent.get(key, 0) + t
+            elif et == "tool_call":
+                tool_calls += 1
+            elif et == "escalation":
+                escalations += 1
+            elif et == "approval_resolved":
+                approvals += 1
+        return {
+            "tenant_id": tenant_id,
+            "agent_runs": runs,
+            "total_tokens": tokens,
+            "tool_calls": tool_calls,
+            "escalations": escalations,
+            "approvals_resolved": approvals,
+            "tokens_by_agent": tokens_by_agent,
+        }
+
 
 # Module-level singleton. Explicit AUDIT_DB -> SQLite (tests); else DATABASE_URL
 # -> Postgres; else local audit.db.
