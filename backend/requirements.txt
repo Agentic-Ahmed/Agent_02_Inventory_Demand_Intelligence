@@ -6,3 +6,5 @@ fastapi
 uvicorn[standard]
 # Auth: Clerk session-token (JWT) verification — only needed once Clerk is switched on
 pyjwt[crypto]
+# Postgres driver (prod data layer; SQLite is used when DATABASE_URL is unset)
+psycopg[binary]

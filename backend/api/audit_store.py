@@ -1,19 +1,20 @@
-"""SQLite-backed audit trail (CLAUDE.md S8 action log; S4 lifecycle hooks).
+"""Audit trail (CLAUDE.md S8 action log; S4 lifecycle hooks).
 
 Append-only record of every autonomous decision + human action, per tenant: agent
-runs, specialist tool calls + their results, guardrail escalations, and approve/reject
-decisions -- each timestamped and reasoned. Local SQLite for dev (env AUDIT_DB,
-default audit.db); Postgres in prod. Read-scoped by tenant_id, like the approval queue.
+runs, specialist tool calls + results, guardrail escalations, and approve/reject
+decisions -- each timestamped and reasoned. Backed by SQLite (dev) or Postgres (prod)
+via core.db -- same interface. Backend: an explicit AUDIT_DB path forces SQLite
+(tests use :memory:); else DATABASE_URL -> Postgres; else a local audit.db.
 """
 from __future__ import annotations
 
 import json
 import os
-import sqlite3
-import threading
 import uuid
 from datetime import datetime, timezone
 from typing import Any, Optional
+
+from ..core.db import DB
 
 _COLUMNS = ("id", "tenant_id", "ts", "event_type", "actor", "summary", "detail")
 
@@ -22,35 +23,23 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def _row_to_item(row: sqlite3.Row) -> dict[str, Any]:
-    item = {k: row[k] for k in _COLUMNS}
-    item["detail"] = json.loads(row["detail"]) if row["detail"] else {}
+def _row_to_item(row: dict) -> dict[str, Any]:
+    item = {k: row.get(k) for k in _COLUMNS}
+    d = item.get("detail")
+    item["detail"] = json.loads(d) if isinstance(d, str) and d else (d or {})
     return item
 
 
 class AuditLog:
-    def __init__(self, db_path: str = "audit.db") -> None:
-        self._lock = threading.Lock()
-        self._conn = sqlite3.connect(db_path, check_same_thread=False)
-        self._conn.row_factory = sqlite3.Row
-        with self._lock:
-            self._conn.execute(
-                """CREATE TABLE IF NOT EXISTS audit (
-                    id         TEXT PRIMARY KEY,
-                    tenant_id  TEXT NOT NULL,
-                    ts         TEXT NOT NULL,
-                    event_type TEXT NOT NULL,
-                    actor      TEXT,
-                    summary    TEXT,
-                    detail     TEXT
-                )"""
-            )
-            self._conn.execute("CREATE INDEX IF NOT EXISTS idx_audit_tenant ON audit(tenant_id, ts)")
-            try:
-                self._conn.execute("PRAGMA journal_mode=WAL")
-            except sqlite3.OperationalError:
-                pass  # e.g. :memory: — harmless
-            self._conn.commit()
+    def __init__(self, sqlite_path: str = "audit.db", prefer_sqlite: bool = False) -> None:
+        self.db = DB(sqlite_path, prefer_sqlite=prefer_sqlite)
+        self.db.init([
+            "CREATE TABLE IF NOT EXISTS audit ("
+            "id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, ts TEXT NOT NULL, "
+            "event_type TEXT NOT NULL, actor TEXT, summary TEXT, detail TEXT)",
+            "CREATE INDEX IF NOT EXISTS idx_audit_tenant ON audit(tenant_id, ts)",
+            "PRAGMA journal_mode=WAL",
+        ])
 
     def log(self, tenant_id: str, event_type: str, actor: str = "",
             summary: str = "", detail: Optional[dict] = None) -> dict[str, Any]:
@@ -63,24 +52,22 @@ class AuditLog:
             "summary": summary,
             "detail": detail or {},
         }
-        with self._lock:
-            self._conn.execute(
-                "INSERT INTO audit (id, tenant_id, ts, event_type, actor, summary, detail) "
-                "VALUES (?,?,?,?,?,?,?)",
-                (item["id"], tenant_id, item["ts"], event_type, actor, summary,
-                 json.dumps(item["detail"])),
-            )
-            self._conn.commit()
+        self.db.execute(
+            "INSERT INTO audit (id, tenant_id, ts, event_type, actor, summary, detail) "
+            "VALUES (%s,%s,%s,%s,%s,%s,%s)",
+            (item["id"], tenant_id, item["ts"], event_type, actor, summary,
+             json.dumps(item["detail"])),
+        )
         return item
 
     def list(self, tenant_id: str, limit: int = 100) -> list[dict[str, Any]]:
-        with self._lock:
-            cur = self._conn.execute(
-                "SELECT * FROM audit WHERE tenant_id=? ORDER BY ts DESC, id DESC LIMIT ?",
-                (tenant_id, max(1, min(limit, 1000))),
-            )
-            return [_row_to_item(r) for r in cur.fetchall()]
+        rows = self.db.execute(
+            "SELECT * FROM audit WHERE tenant_id=%s ORDER BY ts DESC, id DESC LIMIT %s",
+            (tenant_id, max(1, min(limit, 1000))))
+        return [_row_to_item(r) for r in (rows or [])]
 
 
-# Module-level singleton (dev). Prod: per-tenant Postgres-backed log.
-AUDIT = AuditLog(os.environ.get("AUDIT_DB", "audit.db"))
+# Module-level singleton. Explicit AUDIT_DB -> SQLite (tests); else DATABASE_URL
+# -> Postgres; else local audit.db.
+_override = os.environ.get("AUDIT_DB")
+AUDIT = AuditLog(_override or "audit.db", prefer_sqlite=bool(_override))
