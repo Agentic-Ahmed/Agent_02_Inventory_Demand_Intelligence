@@ -1,23 +1,23 @@
 import { SiteHeader } from "@/components/marketing/site-header";
-import { Hero } from "@/components/marketing/hero";
-import { ProofStrip } from "@/components/marketing/proof-strip";
-import { HowItWorks } from "@/components/marketing/how-it-works";
-import { AgentsSection } from "@/components/marketing/agents-section";
-import { ControlSection } from "@/components/marketing/control-section";
-import { SiteFooter } from "@/components/marketing/site-footer";
+import { HeroV2 } from "@/components/v2/hero-v2";
+import { ProofStripV2 } from "@/components/v2/proof-strip-v2";
+import { HowItWorksV2 } from "@/components/v2/how-it-works-v2";
+import { AgentsV2 } from "@/components/v2/agents-v2";
+import { ControlV2 } from "@/components/v2/control-v2";
+import { CtaV2 } from "@/components/v2/cta-v2";
 
 export default function Home() {
   return (
     <>
       <SiteHeader />
       <main className="flex-1">
-        <Hero />
-        <ProofStrip />
-        <HowItWorks />
-        <AgentsSection />
-        <ControlSection />
+        <HeroV2 />
+        <ProofStripV2 />
+        <HowItWorksV2 />
+        <AgentsV2 />
+        <ControlV2 />
       </main>
-      <SiteFooter />
+      <CtaV2 />
     </>
   );
 }
