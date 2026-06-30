@@ -48,14 +48,18 @@ export function SiteHeader() {
         <div className="flex items-center gap-1.5">
           <ModeToggle />
           <ButtonLink
-            href="/app"
+            href="/app?intent=signin"
             variant="ghost"
             size="sm"
             className="hidden sm:inline-flex"
           >
             Sign in
           </ButtonLink>
-          <ButtonLink href="/app" size="sm" className="hidden sm:inline-flex">
+          <ButtonLink
+            href="/app?intent=start"
+            size="sm"
+            className="hidden sm:inline-flex"
+          >
             Start free
           </ButtonLink>
 
@@ -92,13 +96,16 @@ export function SiteHeader() {
                 ))}
                 <div className="mt-4 flex flex-col gap-2">
                   <ButtonLink
-                    href="/app"
+                    href="/app?intent=signin"
                     variant="outline"
                     onClick={() => setOpen(false)}
                   >
                     Sign in
                   </ButtonLink>
-                  <ButtonLink href="/app" onClick={() => setOpen(false)}>
+                  <ButtonLink
+                    href="/app?intent=start"
+                    onClick={() => setOpen(false)}
+                  >
                     Start free
                   </ButtonLink>
                 </div>
