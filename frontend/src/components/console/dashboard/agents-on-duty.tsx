@@ -1,6 +1,6 @@
 import * as React from "react";
 
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardAction, CardContent } from "@/components/ui/card";
 import { ALL_AGENTS } from "@/lib/agents";
 import { cn } from "@/lib/utils";
 
@@ -13,6 +13,12 @@ export function AgentsOnDuty() {
     <Card className="gap-0">
       <CardHeader className="border-b pb-4">
         <CardTitle>Agents on duty</CardTitle>
+        <CardAction>
+          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-ok">
+            <span className="size-1.5 rounded-full bg-ok" />
+            {ALL_AGENTS.length} · all on duty
+          </span>
+        </CardAction>
       </CardHeader>
       <CardContent className="p-0">
         <ul role="list" className="divide-y divide-border/60">

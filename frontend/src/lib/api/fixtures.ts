@@ -21,11 +21,15 @@ import type {
 export interface DashboardKpis {
   forecast_accuracy: number; // 0..1 (1 - MAPE)
   forecast_accuracy_delta: number; // vs previous period
+  forecast_accuracy_trend: number[]; // recent periods, oldest -> newest
   stockout_rate: number; // 0..1
   stockout_rate_delta: number;
+  stockout_rate_trend: number[];
   capital_freed: number; // currency, carrying cost reduced
   capital_freed_delta: number;
+  capital_freed_trend: number[];
   reorder_cycle_hours: number;
+  reorder_cycle_trend: number[];
 }
 
 export interface InventoryRow {
@@ -65,11 +69,15 @@ const ACME: TenantFixture = {
   dashboard: {
     forecast_accuracy: 0.913,
     forecast_accuracy_delta: 0.027,
+    forecast_accuracy_trend: [0.878, 0.882, 0.879, 0.888, 0.886, 0.895, 0.899, 0.902, 0.905, 0.909, 0.911, 0.913],
     stockout_rate: 0.018,
     stockout_rate_delta: -0.041,
+    stockout_rate_trend: [0.072, 0.068, 0.07, 0.061, 0.058, 0.049, 0.045, 0.039, 0.031, 0.026, 0.021, 0.018],
     capital_freed: 412_000,
     capital_freed_delta: 86_000,
+    capital_freed_trend: [280_000, 300_000, 310_000, 326_000, 340_000, 352_000, 366_000, 378_000, 389_000, 398_000, 405_000, 412_000],
     reorder_cycle_hours: 3.4,
+    reorder_cycle_trend: [6.2, 5.8, 5.5, 5.1, 4.7, 4.4, 4.1, 3.9, 3.7, 3.6, 3.5, 3.4],
   },
   inventory: [
     { sku: "SKU-1000", name: "Trailhead Down Jacket", on_hand: 142, days_cover: 11, status: "healthy" },
@@ -270,11 +278,15 @@ const CORNERSHOP: TenantFixture = {
   dashboard: {
     forecast_accuracy: 0.864,
     forecast_accuracy_delta: 0.012,
+    forecast_accuracy_trend: [0.842, 0.845, 0.848, 0.85, 0.849, 0.853, 0.856, 0.858, 0.86, 0.861, 0.863, 0.864],
     stockout_rate: 0.046,
     stockout_rate_delta: -0.018,
+    stockout_rate_trend: [0.071, 0.069, 0.066, 0.064, 0.061, 0.058, 0.056, 0.053, 0.051, 0.049, 0.047, 0.046],
     capital_freed: 28_400,
     capital_freed_delta: 5_200,
+    capital_freed_trend: [16_000, 17_800, 19_000, 20_500, 21_800, 23_000, 24_100, 25_200, 26_100, 27_000, 27_800, 28_400],
     reorder_cycle_hours: 3.9,
+    reorder_cycle_trend: [5.4, 5.2, 5.0, 4.8, 4.6, 4.5, 4.3, 4.2, 4.1, 4.0, 3.95, 3.9],
   },
   inventory: [
     { sku: "SKU-2001", name: "Cold Brew 12-pack", on_hand: 64, days_cover: 9, status: "healthy" },

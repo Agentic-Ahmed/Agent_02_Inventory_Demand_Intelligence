@@ -23,7 +23,14 @@ export function PendingApprovalsCard({
   return (
     <Card className="gap-0">
       <CardHeader className="border-b pb-4">
-        <CardTitle>Pending approvals</CardTitle>
+        <CardTitle className="flex items-center gap-2">
+          Pending approvals
+          {items && items.length > 0 ? (
+            <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-warn/15 px-1.5 text-xs font-semibold tabular-nums text-warn">
+              {items.length}
+            </span>
+          ) : null}
+        </CardTitle>
         {items && items.length > 0 ? (
           <CardAction>
             <Link
