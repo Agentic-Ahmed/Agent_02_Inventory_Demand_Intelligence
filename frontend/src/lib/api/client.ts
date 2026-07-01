@@ -53,12 +53,16 @@ export function canApprove(role: string, requiredRole: string | null): boolean {
 // ---- live fetch helper ----
 
 async function apiFetch<T>(session: Session, path: string, init?: RequestInit): Promise<T> {
+  // When Clerk is on, send the verified session JWT; the backend reads identity
+  // from it and ignores the dev headers (which stay for the no-auth dev path).
+  const token = session.getToken ? await session.getToken() : null;
   const res = await fetch(`${API_BASE}${path}`, {
     ...init,
     headers: {
       "Content-Type": "application/json",
       "X-Tenant-Id": session.tenantId,
       "X-User-Role": session.role,
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(init?.headers ?? {}),
     },
     cache: "no-store",

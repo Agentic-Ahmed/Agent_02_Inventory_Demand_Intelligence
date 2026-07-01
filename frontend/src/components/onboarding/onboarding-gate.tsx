@@ -3,6 +3,7 @@
 import * as React from "react";
 
 import { Brand } from "@/components/brand";
+import { useSession } from "@/lib/api/session";
 import { useOnboarding } from "./use-onboarding";
 import { Walkthrough } from "./walkthrough";
 
@@ -17,7 +18,8 @@ export type AppIntent = "signin" | "start";
  *   done      -> the console (children)
  */
 export function OnboardingGate({ children }: { children: React.ReactNode }) {
-  const { status, complete } = useOnboarding();
+  const { userKey } = useSession();
+  const { status, complete } = useOnboarding(userKey);
 
   if (status === "loading") return <EntrySplash />;
   if (status === "first-run") return <Walkthrough onComplete={complete} />;

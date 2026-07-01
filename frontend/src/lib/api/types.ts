@@ -94,8 +94,13 @@ export type ChatStreamEvent =
   | { type: "done"; answer: string; tools_called: string[]; escalations: string[] }
   | { type: "error"; detail: string };
 
-/** The caller's dev identity (X-Tenant-Id / X-User-Role until Clerk is switched on). */
+/**
+ * The caller's identity passed to the client. tenantId/role drive the dev
+ * X-Tenant-Id / X-User-Role headers; getToken (present once Clerk is on) supplies
+ * the verified session JWT sent as `Authorization: Bearer`.
+ */
 export interface Session {
   tenantId: string;
   role: string;
+  getToken?: () => Promise<string | null>;
 }

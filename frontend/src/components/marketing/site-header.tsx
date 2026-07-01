@@ -14,12 +14,18 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { clerkEnabled } from "@/lib/auth/clerk";
 
 const NAV = [
   { label: "How it works", href: "#how" },
   { label: "Agents", href: "#agents" },
   { label: "Control", href: "#control" },
 ];
+
+// With Clerk on, the buttons go to real sign-in/up; in dev they enter the
+// console (which gates first-timers into the onboarding tour).
+const SIGN_IN_HREF = clerkEnabled ? "/sign-in" : "/app?intent=signin";
+const START_HREF = clerkEnabled ? "/sign-up" : "/app?intent=start";
 
 export function SiteHeader() {
   const [open, setOpen] = React.useState(false);
@@ -48,7 +54,7 @@ export function SiteHeader() {
         <div className="flex items-center gap-1.5">
           <ModeToggle />
           <ButtonLink
-            href="/app?intent=signin"
+            href={SIGN_IN_HREF}
             variant="ghost"
             size="sm"
             className="hidden sm:inline-flex"
@@ -56,7 +62,7 @@ export function SiteHeader() {
             Sign in
           </ButtonLink>
           <ButtonLink
-            href="/app?intent=start"
+            href={START_HREF}
             size="sm"
             className="hidden sm:inline-flex"
           >
@@ -96,14 +102,14 @@ export function SiteHeader() {
                 ))}
                 <div className="mt-4 flex flex-col gap-2">
                   <ButtonLink
-                    href="/app?intent=signin"
+                    href={SIGN_IN_HREF}
                     variant="outline"
                     onClick={() => setOpen(false)}
                   >
                     Sign in
                   </ButtonLink>
                   <ButtonLink
-                    href="/app?intent=start"
+                    href={START_HREF}
                     onClick={() => setOpen(false)}
                   >
                     Start free

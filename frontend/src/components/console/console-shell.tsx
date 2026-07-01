@@ -19,6 +19,8 @@ import {
 import { useSession } from "@/lib/api/session";
 import { useQuery } from "@/lib/api/use-query";
 import { getApprovals, IS_LIVE } from "@/lib/api/client";
+import { clerkEnabled } from "@/lib/auth/clerk";
+import { ClerkOrgControls } from "@/components/auth/clerk-org-controls";
 import { cn } from "@/lib/utils";
 import { NAV, isActive } from "./nav";
 import { TenantSwitcher } from "./tenant-switcher";
@@ -66,7 +68,7 @@ function NavList({
 function SidebarFooter() {
   return (
     <div className="flex flex-col gap-2 border-t border-border/60 p-3">
-      <TenantSwitcher />
+      {clerkEnabled ? <ClerkOrgControls /> : <TenantSwitcher />}
       <div className="flex items-center justify-between px-1">
         <span
           className={cn(
@@ -91,11 +93,11 @@ function SidebarFooter() {
 /** The console chrome wrapping all /app/* screens: persistent sidebar on desktop,
  *  a slide-over on mobile. Content scrolls independently of the nav. */
 export function ConsoleShell({ children }: { children: React.ReactNode }) {
-  const { tenantId, role } = useSession();
+  const { tenantId, role, getToken, clerkActive } = useSession();
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const { data: pending } = useQuery(
-    () => getApprovals({ tenantId, role }, "pending"),
-    [tenantId, role],
+    () => getApprovals({ tenantId, role, getToken }, "pending"),
+    [tenantId, role, clerkActive],
   );
   const pendingCount = pending?.length;
 

@@ -12,12 +12,15 @@ import { AgentsOnDuty } from "./agents-on-duty";
 import { InventoryHealth } from "./inventory-health";
 
 export function DashboardScreen() {
-  const { tenantId, role } = useSession();
-  const session = React.useMemo(() => ({ tenantId, role }), [tenantId, role]);
+  const { tenantId, role, getToken, clerkActive } = useSession();
+  const session = React.useMemo(
+    () => ({ tenantId, role, getToken }),
+    [tenantId, role, getToken],
+  );
 
-  const dash = useQuery(() => getDashboard(session), [tenantId, role]);
-  const approvals = useQuery(() => getApprovals(session, "pending"), [tenantId, role]);
-  const inventory = useQuery(() => getInventory(session), [tenantId, role]);
+  const dash = useQuery(() => getDashboard(session), [tenantId, role, clerkActive]);
+  const approvals = useQuery(() => getApprovals(session, "pending"), [tenantId, role, clerkActive]);
+  const inventory = useQuery(() => getInventory(session), [tenantId, role, clerkActive]);
 
   return (
     <PageContainer>

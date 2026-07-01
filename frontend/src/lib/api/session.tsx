@@ -1,37 +1,59 @@
 "use client";
 
 import * as React from "react";
-import type { Session } from "./types";
 
 /**
- * The caller's dev identity (tenant + role), persisted to localStorage. Drives
- * the X-Tenant-Id / X-User-Role headers in live mode and fixture selection
- * offline. Swapped out for Clerk's session once auth is switched on (CLAUDE.md S2).
+ * The caller's identity for the console. Two sources, mirroring the backend:
+ *   - Dev (no Clerk): tenant + role come from the in-app switcher, persisted to
+ *     localStorage; onboarding is scoped per-browser ("anon").
+ *   - Clerk on: <ClerkSessionBridge> calls registerAuth() with the verified
+ *     org/role/user + a getToken(), which then override the dev values and the
+ *     API client sends the token as a bearer.
  */
 const STORAGE_KEY = "quorum.session";
-const DEFAULT: Session = { tenantId: "acme", role: "planner" };
+const DEFAULT = { tenantId: "acme", role: "planner" };
 
-interface SessionCtx extends Session {
+type GetToken = () => Promise<string | null>;
+
+interface AuthIdentity {
+  tenantId: string;
+  role: string;
+  userKey: string;
+  getToken: GetToken;
+}
+
+interface SessionCtx {
+  tenantId: string;
+  role: string;
+  /** Onboarding scope: the signed-in user id, or "anon" in dev. */
+  userKey: string;
+  /** True once a Clerk identity is in effect (hides the dev switcher). */
+  clerkActive: boolean;
+  /** Bearer-token getter when Clerk is on; undefined in dev. */
+  getToken?: GetToken;
   setTenant: (tenantId: string) => void;
   setRole: (role: string) => void;
+  /** Called by the Clerk bridge; pass null on sign-out. */
+  registerAuth: (identity: AuthIdentity | null) => void;
 }
 
 const Ctx = React.createContext<SessionCtx | null>(null);
 
 export function SessionProvider({ children }: { children: React.ReactNode }) {
-  const [session, setSession] = React.useState<Session>(DEFAULT);
+  const [dev, setDev] = React.useState(DEFAULT);
+  const [auth, setAuth] = React.useState<AuthIdentity | null>(null);
 
   React.useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) setSession({ ...DEFAULT, ...JSON.parse(raw) });
+      if (raw) setDev({ ...DEFAULT, ...JSON.parse(raw) });
     } catch {
       /* ignore malformed/blocked storage */
     }
   }, []);
 
-  const persist = React.useCallback((next: Session) => {
-    setSession(next);
+  const persist = React.useCallback((next: typeof DEFAULT) => {
+    setDev(next);
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
     } catch {
@@ -39,13 +61,24 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const registerAuth = React.useCallback((identity: AuthIdentity | null) => {
+    setAuth(identity);
+  }, []);
+
+  const clerkActive = auth !== null;
+
   const value = React.useMemo<SessionCtx>(
     () => ({
-      ...session,
-      setTenant: (tenantId) => persist({ ...session, tenantId }),
-      setRole: (role) => persist({ ...session, role }),
+      tenantId: auth ? auth.tenantId : dev.tenantId,
+      role: auth ? auth.role : dev.role,
+      userKey: auth ? auth.userKey : "anon",
+      clerkActive,
+      getToken: auth ? auth.getToken : undefined,
+      setTenant: (tenantId) => persist({ ...dev, tenantId }),
+      setRole: (role) => persist({ ...dev, role }),
+      registerAuth,
     }),
-    [session, persist],
+    [auth, dev, clerkActive, persist, registerAuth],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

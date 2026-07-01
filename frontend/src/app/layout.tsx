@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
+import { ClerkProvider } from "@clerk/nextjs";
 import { cn } from "@/lib/utils";
 import { ThemeProvider } from "@/components/theme-provider";
+import { clerkEnabled } from "@/lib/auth/clerk";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -19,7 +21,7 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  return (
+  const tree = (
     <html
       lang="en"
       suppressHydrationWarning
@@ -40,5 +42,14 @@ export default function RootLayout({
         </ThemeProvider>
       </body>
     </html>
+  );
+
+  // Wrap in Clerk only when configured, so the app runs with no auth provider in
+  // dev. Brand the Clerk UI with our teal primary.
+  if (!clerkEnabled) return tree;
+  return (
+    <ClerkProvider appearance={{ variables: { colorPrimary: "#0D9488" } }}>
+      {tree}
+    </ClerkProvider>
   );
 }
