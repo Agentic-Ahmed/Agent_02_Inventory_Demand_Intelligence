@@ -102,12 +102,12 @@ export function ConsoleShell({ children }: { children: React.ReactNode }) {
   const pendingCount = pending?.length;
 
   return (
-    <div className="flex min-h-dvh bg-background text-foreground">
-      {/* Ambient brand/agent glow behind everything — gives the glass depth. */}
-      <div aria-hidden className="app-ambient pointer-events-none fixed inset-0 -z-10" />
+    <div className="relative flex min-h-dvh bg-background text-foreground">
+      {/* Color field sits above the dark bg (z-0); the shell rides above it (z-10). */}
+      <div aria-hidden className="app-ambient pointer-events-none absolute inset-0 z-0" />
 
       {/* Desktop sidebar */}
-      <aside className="glass sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-border/60 bg-card/50 md:flex">
+      <aside className="glass sticky top-0 z-10 hidden h-dvh w-60 shrink-0 flex-col border-r border-border/60 bg-white/60 dark:bg-white/10 md:flex">
         <div className="flex h-16 items-center px-5">
           <Link href="/app" aria-label="Quorum dashboard">
             <Brand />
@@ -120,7 +120,7 @@ export function ConsoleShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* Main column */}
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="relative z-10 flex min-w-0 flex-1 flex-col">
         {/* Mobile top bar */}
         <header className="sticky top-0 z-40 flex h-14 items-center justify-between border-b border-border/60 bg-background/80 px-4 backdrop-blur-xl md:hidden">
           <Link href="/app" aria-label="Quorum dashboard">

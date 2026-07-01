@@ -213,30 +213,41 @@
     (e.g. bg-card/60) which supplies the tint; .glass adds the blur + a
     hairline top sheen. Reads best over .app-ambient.
   */
+  /*
+    Frosted-glass surface — supply the tint with a bright translucent bg
+    utility (bg-white/60 dark:bg-white/10); .glass adds the blur, a bright
+    edge rim and a soft drop shadow so it reads like real glass.
+  */
   .glass {
-    -webkit-backdrop-filter: blur(22px) saturate(1.8);
-    backdrop-filter: blur(22px) saturate(1.8);
+    -webkit-backdrop-filter: blur(24px) saturate(1.8);
+    backdrop-filter: blur(24px) saturate(1.8);
     box-shadow:
-      inset 0 1px 0 0 color-mix(in oklch, white 22%, transparent),
-      inset 0 0 0 1px color-mix(in oklch, white 8%, transparent),
-      0 8px 30px -12px color-mix(in oklch, black 45%, transparent);
+      inset 0 1px 0 0 color-mix(in oklch, white 55%, transparent),
+      inset 0 0 0 1px color-mix(in oklch, white 28%, transparent),
+      0 12px 34px -14px color-mix(in oklch, black 30%, transparent);
+  }
+  .dark .glass {
+    box-shadow:
+      inset 0 1px 0 0 color-mix(in oklch, white 24%, transparent),
+      inset 0 0 0 1px color-mix(in oklch, white 12%, transparent),
+      0 14px 40px -14px color-mix(in oklch, black 55%, transparent);
   }
 
-  /* Ambient brand/agent color field behind the console — gives the glass
-     something vivid to refract, so the frost actually reads. */
+  /* Brand color field behind the console — teal-dominant (brand identity),
+     varied in depth so the frosted panels clearly read as glass. */
   .app-ambient {
     background:
-      radial-gradient(42rem 30rem at 8% -6%, color-mix(in oklch, var(--brand) 34%, transparent), transparent 62%),
-      radial-gradient(40rem 30rem at 104% 2%, color-mix(in oklch, var(--agent-horizon) 28%, transparent), transparent 62%),
-      radial-gradient(40rem 34rem at 88% 112%, color-mix(in oklch, var(--agent-tag) 22%, transparent), transparent 64%),
-      radial-gradient(38rem 32rem at 16% 118%, color-mix(in oklch, var(--agent-broker) 20%, transparent), transparent 64%);
+      radial-gradient(52rem 44rem at 6% -8%, color-mix(in oklch, var(--brand) 40%, transparent), transparent 60%),
+      radial-gradient(50rem 44rem at 100% 4%, color-mix(in oklch, var(--brand) 26%, transparent), transparent 60%),
+      radial-gradient(48rem 44rem at 88% 116%, color-mix(in oklch, var(--brand) 30%, transparent), transparent 62%),
+      radial-gradient(46rem 42rem at 10% 118%, color-mix(in oklch, var(--brand) 18%, transparent), transparent 64%);
   }
   .dark .app-ambient {
     background:
-      radial-gradient(44rem 34rem at 8% -6%, color-mix(in oklch, var(--brand) 60%, transparent), transparent 60%),
-      radial-gradient(42rem 34rem at 104% 2%, color-mix(in oklch, var(--agent-horizon) 52%, transparent), transparent 60%),
-      radial-gradient(42rem 36rem at 88% 112%, color-mix(in oklch, var(--agent-tag) 46%, transparent), transparent 62%),
-      radial-gradient(40rem 34rem at 16% 118%, color-mix(in oklch, var(--agent-broker) 40%, transparent), transparent 62%);
+      radial-gradient(52rem 44rem at 6% -8%, color-mix(in oklch, var(--brand) 85%, transparent), transparent 58%),
+      radial-gradient(50rem 44rem at 100% 4%, color-mix(in oklch, var(--brand) 52%, transparent), transparent 58%),
+      radial-gradient(48rem 44rem at 88% 116%, color-mix(in oklch, var(--brand) 62%, transparent), transparent 60%),
+      radial-gradient(46rem 42rem at 10% 118%, color-mix(in oklch, var(--brand) 40%, transparent), transparent 62%);
   }
 
   /* Respect users who ask for less transparency: drop the blur. */

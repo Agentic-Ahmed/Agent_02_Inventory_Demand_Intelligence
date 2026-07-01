@@ -21,7 +21,7 @@ export function PendingApprovalsCard({
   const top = items?.slice(0, 4) ?? [];
 
   return (
-    <Card className="glass bg-card/50 gap-0">
+    <Card className="glass bg-white/60 dark:bg-white/10 gap-0">
       <CardHeader className="border-b pb-4">
         <CardTitle className="flex items-center gap-2">
           Pending approvals
