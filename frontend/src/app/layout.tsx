@@ -48,7 +48,11 @@ export default function RootLayout({
   // dev. Brand the Clerk UI with our teal primary.
   if (!clerkEnabled) return tree;
   return (
-    <ClerkProvider appearance={{ variables: { colorPrimary: "#0D9488" } }}>
+    <ClerkProvider
+      signInUrl="/sign-in"
+      signUpUrl="/sign-up"
+      appearance={{ variables: { colorPrimary: "#0D9488" } }}
+    >
       {tree}
     </ClerkProvider>
   );

@@ -13,40 +13,26 @@ import {
   WelcomeStep,
   AgentsStep,
   ControlStep,
-  SignupStep,
-  type SignupFields,
+  ReadyStep,
 } from "./steps";
-import type { AppIntent } from "./onboarding-gate";
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const LAST = STEPS.length - 1;
 
 /**
  * First-run product tour. Four steps, fully keyboard-navigable (← / → between
  * steps, Enter to advance, Esc to skip), with focus moved to each step heading so
- * screen readers announce the change. Honors prefers-reduced-motion. The final
- * step captures a lightweight signup, then calls onComplete to enter the workspace.
+ * screen readers announce the change. Honors prefers-reduced-motion. Sign-up is
+ * handled before this (real Clerk auth); the final step just enters the console.
  */
-export function Walkthrough({
-  onComplete,
-  intent = "start",
-}: {
-  onComplete: () => void;
-  intent?: AppIntent;
-}) {
+export function Walkthrough({ onComplete }: { onComplete: () => void }) {
   const reduce = useReducedMotion();
   const [step, setStep] = React.useState(0);
-  const [fields, setFields] = React.useState<SignupFields>({ email: "", company: "" });
-  const [emailError, setEmailError] = React.useState<string>();
 
   const headingRef = React.useRef<HTMLHeadingElement>(null);
-  const emailRef = React.useRef<HTMLInputElement>(null);
 
-  // Move focus on each step change: the email field on the signup step (so the
-  // user can type immediately), otherwise the heading (announces the new panel).
+  // Move focus to each step heading so screen readers announce the new panel.
   React.useEffect(() => {
-    if (step === LAST) emailRef.current?.focus();
-    else headingRef.current?.focus();
+    headingRef.current?.focus();
   }, [step]);
 
   const meta = STEPS[step];
@@ -60,12 +46,6 @@ export function Walkthrough({
       setStep((s) => s + 1);
       return;
     }
-    if (!EMAIL_RE.test(fields.email.trim())) {
-      setEmailError("Enter a valid work email.");
-      emailRef.current?.focus();
-      return;
-    }
-    setEmailError(undefined);
     onComplete();
   }
 
@@ -158,17 +138,7 @@ export function Walkthrough({
                 {step === 0 && <WelcomeStep />}
                 {step === 1 && <AgentsStep />}
                 {step === 2 && <ControlStep />}
-                {step === 3 && (
-                  <SignupStep
-                    values={fields}
-                    errors={{ email: emailError }}
-                    onChange={(patch) => {
-                      setFields((f) => ({ ...f, ...patch }));
-                      if (patch.email !== undefined) setEmailError(undefined);
-                    }}
-                    emailRef={emailRef}
-                  />
-                )}
+                {step === 3 && <ReadyStep />}
               </motion.div>
             </AnimatePresence>
           </div>
@@ -191,7 +161,7 @@ export function Walkthrough({
               ) : (
                 <>
                   <Check className="size-4" />
-                  {intent === "signin" ? "Finish & sign in" : "Create workspace"}
+                  Enter Quorum
                 </>
               )}
             </Button>

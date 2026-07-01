@@ -6,6 +6,12 @@ import { Brand } from "@/components/brand";
 import { ButtonLink } from "@/components/ui/button-link";
 import { Magnetic } from "@/components/v2/magnetic";
 import { Reveal } from "@/components/reveal";
+import { clerkEnabled } from "@/lib/auth/clerk";
+
+// With Clerk on, these go to real sign-up/sign-in; in dev they enter the
+// console, which gates first-timers into the product tour.
+const START_HREF = clerkEnabled ? "/sign-up" : "/app?intent=start";
+const SIGN_IN_HREF = clerkEnabled ? "/sign-in" : "/app?intent=signin";
 
 export function CtaV2() {
   return (
@@ -26,7 +32,7 @@ export function CtaV2() {
             </p>
             <div className="relative mt-9 flex justify-center">
               <Magnetic strength={0.5}>
-                <ButtonLink href="/app" size="lg" className="group h-12 px-7 text-base">
+                <ButtonLink href={START_HREF} size="lg" className="group h-12 px-7 text-base">
                   Start free
                   <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
                 </ButtonLink>
@@ -42,7 +48,7 @@ export function CtaV2() {
           <nav className="flex items-center gap-6 text-sm text-muted-foreground">
             <Link href="#how" className="hover:text-foreground">How it works</Link>
             <Link href="#agents" className="hover:text-foreground">Agents</Link>
-            <Link href="/app" className="hover:text-foreground">Sign in</Link>
+            <Link href={SIGN_IN_HREF} className="hover:text-foreground">Sign in</Link>
           </nav>
           <p className="text-xs text-muted-foreground">© {new Date().getFullYear()} Quorum</p>
         </div>

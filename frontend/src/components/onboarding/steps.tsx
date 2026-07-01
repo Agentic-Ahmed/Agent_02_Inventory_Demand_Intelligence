@@ -9,12 +9,12 @@ import {
   Inbox,
   Gauge,
   BadgePercent,
+  LayoutDashboard,
+  MessagesSquare,
   type LucideIcon,
 } from "lucide-react";
 
 import { ALL_AGENTS } from "@/lib/agents";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
 /**
@@ -35,7 +35,7 @@ export const STEPS: StepMeta[] = [
   { id: "welcome", label: "Welcome", eyebrow: "Welcome to Quorum", title: "Six agents run your inventory. You run the calls that matter." },
   { id: "agents", label: "The team", eyebrow: "Your quorum", title: "Meet the six agents on the floor." },
   { id: "control", label: "Control", eyebrow: "Guardrails", title: "Full autonomy, with a seatbelt." },
-  { id: "signup", label: "Workspace", eyebrow: "Last step", title: "Create your workspace." },
+  { id: "ready", label: "You're set", eyebrow: "You're in", title: "Your quorum is ready." },
 ];
 
 // Shared in/out motion for the panel body; static under prefers-reduced-motion.
@@ -140,67 +140,32 @@ export function ControlStep() {
   );
 }
 
-export interface SignupFields {
-  email: string;
-  company: string;
-}
-
-export function SignupStep({
-  values,
-  errors,
-  onChange,
-  emailRef,
-}: {
-  values: SignupFields;
-  errors: { email?: string };
-  onChange: (patch: Partial<SignupFields>) => void;
-  emailRef: React.Ref<HTMLInputElement>;
-}) {
+export function ReadyStep() {
   const m = useStepMotion();
+  const spots: { icon: LucideIcon; title: string; body: string }[] = [
+    { icon: LayoutDashboard, title: "Dashboard", body: "Forecast accuracy, stockout rate, and capital freed — your inventory health at a glance." },
+    { icon: Inbox, title: "Approval inbox", body: "Where the money calls wait for you — approve, reject, or modify, every action audited." },
+    { icon: MessagesSquare, title: "Ask the orchestrator", body: "Ask about any SKU, forecast, or decision in plain language and get a reasoned answer back." },
+  ];
   return (
     <motion.div {...m} className="grid gap-4">
       <p className="text-sm leading-relaxed text-muted-foreground">
-        Quorum is multi-tenant — each business gets its own isolated memory and
-        thresholds. Tell us where to set yours up.
+        That&apos;s the tour. Your workspace is set up and isolated to your business —
+        here&apos;s where to start.
       </p>
-      <div className="grid gap-1.5">
-        <Label htmlFor="ob-email">Work email</Label>
-        <Input
-          id="ob-email"
-          ref={emailRef}
-          type="email"
-          inputMode="email"
-          autoComplete="email"
-          placeholder="you@company.com"
-          value={values.email}
-          onChange={(e) => onChange({ email: e.target.value })}
-          aria-invalid={errors.email ? true : undefined}
-          aria-describedby={errors.email ? "ob-email-error" : undefined}
-          className="h-10"
-        />
-        {errors.email ? (
-          <p id="ob-email-error" role="alert" className="text-xs font-medium text-destructive">
-            {errors.email}
-          </p>
-        ) : null}
+      <div className="grid gap-2.5">
+        {spots.map(({ icon: Icon, title, body }) => (
+          <div key={title} className="flex items-start gap-3.5 rounded-xl border border-border/70 bg-card/50 p-4">
+            <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <Icon className="size-4.5" />
+            </span>
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+              <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{body}</p>
+            </div>
+          </div>
+        ))}
       </div>
-      <div className="grid gap-1.5">
-        <Label htmlFor="ob-company">
-          Company <span className="font-normal text-muted-foreground">(optional)</span>
-        </Label>
-        <Input
-          id="ob-company"
-          type="text"
-          autoComplete="organization"
-          placeholder="Acme Retail"
-          value={values.company}
-          onChange={(e) => onChange({ company: e.target.value })}
-          className="h-10"
-        />
-      </div>
-      <p className="text-xs text-muted-foreground">
-        No password yet — single sign-on arrives when Quorum opens. We&apos;ll hold your spot.
-      </p>
     </motion.div>
   );
 }

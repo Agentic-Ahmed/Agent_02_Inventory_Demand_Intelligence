@@ -7,9 +7,6 @@ import { useSession } from "@/lib/api/session";
 import { useOnboarding } from "./use-onboarding";
 import { Walkthrough } from "./walkthrough";
 
-/** Which button brought a first-timer here. Lightly tailors the tour copy. */
-export type AppIntent = "signin" | "start";
-
 /**
  * First-run guard for the whole console. Wraps every /app/* screen:
  *   loading   -> a quiet brand splash (no flash of the tour for returning users)

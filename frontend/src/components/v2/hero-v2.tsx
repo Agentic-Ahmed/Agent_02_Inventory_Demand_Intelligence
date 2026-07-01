@@ -7,11 +7,16 @@ import { ArrowRight } from "lucide-react";
 import { ButtonLink } from "@/components/ui/button-link";
 import { Magnetic } from "@/components/v2/magnetic";
 import { KineticHeading } from "@/components/v2/kinetic-heading";
+import { clerkEnabled } from "@/lib/auth/clerk";
 
 const AgentConstellation = dynamic(
   () => import("@/components/v2/agent-constellation"),
   { ssr: false },
 );
+
+// With Clerk on, "Start free" goes to real sign-up; in dev it enters the
+// console, which gates first-timers into the product tour.
+const START_HREF = clerkEnabled ? "/sign-up" : "/app?intent=start";
 
 export function HeroV2() {
   const reduce = useReducedMotion();
@@ -89,7 +94,7 @@ export function HeroV2() {
           className="pointer-events-auto mt-9 flex flex-col items-center gap-3 sm:flex-row"
         >
           <Magnetic strength={0.45}>
-            <ButtonLink href="/app" size="lg" className="group h-12 px-6 text-base">
+            <ButtonLink href={START_HREF} size="lg" className="group h-12 px-6 text-base">
               Start free
               <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
             </ButtonLink>
