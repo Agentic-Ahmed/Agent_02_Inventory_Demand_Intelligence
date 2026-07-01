@@ -21,7 +21,7 @@ export function InventoryHealth({
   loading?: boolean;
 }) {
   return (
-    <Card className="gap-0">
+    <Card className="glass bg-card/60 gap-0">
       <CardHeader className="border-b pb-4">
         <CardTitle>Inventory health</CardTitle>
       </CardHeader>

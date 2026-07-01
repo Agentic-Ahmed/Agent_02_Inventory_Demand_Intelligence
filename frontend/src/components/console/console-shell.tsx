@@ -103,8 +103,11 @@ export function ConsoleShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-dvh bg-background text-foreground">
+      {/* Ambient brand/agent glow behind everything — gives the glass depth. */}
+      <div aria-hidden className="app-ambient pointer-events-none fixed inset-0 -z-10" />
+
       {/* Desktop sidebar */}
-      <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-border/60 bg-card/30 md:flex">
+      <aside className="glass sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-border/60 bg-card/60 md:flex">
         <div className="flex h-16 items-center px-5">
           <Link href="/app" aria-label="Quorum dashboard">
             <Brand />

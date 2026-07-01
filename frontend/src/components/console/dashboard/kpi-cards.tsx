@@ -99,7 +99,7 @@ export function KpiCards({ data, loading }: { data?: DashboardKpis; loading?: bo
     return (
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => (
-          <Card key={i} className="gap-0 p-4">
+          <Card key={i} className="glass bg-card/60 gap-0 p-4">
             <div className="flex items-center justify-between">
               <Skeleton className="h-4 w-24" />
               <Skeleton className="size-8 rounded-lg" />
@@ -117,7 +117,7 @@ export function KpiCards({ data, loading }: { data?: DashboardKpis; loading?: bo
   return (
     <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
       {kpis.map(({ icon: Icon, label, value, tone, trend, trendFormat, delta, pill, foot }) => (
-        <Card key={label} className="gap-0 p-4">
+        <Card key={label} className="glass bg-card/60 gap-0 p-4">
           <div className="flex items-start justify-between gap-2">
             <span className="text-sm text-muted-foreground">{label}</span>
             <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
