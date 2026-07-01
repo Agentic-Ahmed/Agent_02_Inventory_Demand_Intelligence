@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
  */
 export function AgentsOnDuty() {
   return (
-    <Card className="glass bg-card/60 gap-0">
+    <Card className="glass bg-card/50 gap-0">
       <CardHeader className="border-b pb-4">
         <CardTitle>Agents on duty</CardTitle>
         <CardAction>

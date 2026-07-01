@@ -214,24 +214,29 @@
     hairline top sheen. Reads best over .app-ambient.
   */
   .glass {
-    -webkit-backdrop-filter: blur(16px) saturate(1.4);
-    backdrop-filter: blur(16px) saturate(1.4);
-    box-shadow: inset 0 1px 0 0 color-mix(in oklch, white 10%, transparent);
+    -webkit-backdrop-filter: blur(22px) saturate(1.8);
+    backdrop-filter: blur(22px) saturate(1.8);
+    box-shadow:
+      inset 0 1px 0 0 color-mix(in oklch, white 22%, transparent),
+      inset 0 0 0 1px color-mix(in oklch, white 8%, transparent),
+      0 8px 30px -12px color-mix(in oklch, black 45%, transparent);
   }
 
-  /* Ambient brand/agent glow behind the console — gives the glass something
-     to refract. Kept subtle in light, a touch stronger on dark. */
+  /* Ambient brand/agent color field behind the console — gives the glass
+     something vivid to refract, so the frost actually reads. */
   .app-ambient {
     background:
-      radial-gradient(38rem 26rem at 12% -8%, color-mix(in oklch, var(--brand) 15%, transparent), transparent 70%),
-      radial-gradient(34rem 26rem at 105% 3%, color-mix(in oklch, var(--agent-horizon) 11%, transparent), transparent 70%),
-      radial-gradient(40rem 32rem at 55% 118%, color-mix(in oklch, var(--agent-tag) 8%, transparent), transparent 72%);
+      radial-gradient(42rem 30rem at 8% -6%, color-mix(in oklch, var(--brand) 34%, transparent), transparent 62%),
+      radial-gradient(40rem 30rem at 104% 2%, color-mix(in oklch, var(--agent-horizon) 28%, transparent), transparent 62%),
+      radial-gradient(40rem 34rem at 88% 112%, color-mix(in oklch, var(--agent-tag) 22%, transparent), transparent 64%),
+      radial-gradient(38rem 32rem at 16% 118%, color-mix(in oklch, var(--agent-broker) 20%, transparent), transparent 64%);
   }
   .dark .app-ambient {
     background:
-      radial-gradient(40rem 28rem at 12% -8%, color-mix(in oklch, var(--brand) 26%, transparent), transparent 70%),
-      radial-gradient(36rem 28rem at 105% 3%, color-mix(in oklch, var(--agent-horizon) 20%, transparent), transparent 70%),
-      radial-gradient(42rem 34rem at 55% 118%, color-mix(in oklch, var(--agent-tag) 14%, transparent), transparent 72%);
+      radial-gradient(44rem 34rem at 8% -6%, color-mix(in oklch, var(--brand) 60%, transparent), transparent 60%),
+      radial-gradient(42rem 34rem at 104% 2%, color-mix(in oklch, var(--agent-horizon) 52%, transparent), transparent 60%),
+      radial-gradient(42rem 36rem at 88% 112%, color-mix(in oklch, var(--agent-tag) 46%, transparent), transparent 62%),
+      radial-gradient(40rem 34rem at 16% 118%, color-mix(in oklch, var(--agent-broker) 40%, transparent), transparent 62%);
   }
 
   /* Respect users who ask for less transparency: drop the blur. */

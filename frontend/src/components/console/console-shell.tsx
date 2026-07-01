@@ -107,7 +107,7 @@ export function ConsoleShell({ children }: { children: React.ReactNode }) {
       <div aria-hidden className="app-ambient pointer-events-none fixed inset-0 -z-10" />
 
       {/* Desktop sidebar */}
-      <aside className="glass sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-border/60 bg-card/60 md:flex">
+      <aside className="glass sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-border/60 bg-card/50 md:flex">
         <div className="flex h-16 items-center px-5">
           <Link href="/app" aria-label="Quorum dashboard">
             <Brand />
