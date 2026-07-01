@@ -38,9 +38,9 @@ export function InventoryHealth({
               <Skeleton key={i} className="h-9 w-full" />
             ))}
           </div>
-        ) : (
+        ) : rows && rows.length > 0 ? (
           <ul role="list" className="divide-y divide-border/60">
-            {rows?.map((row) => {
+            {rows.map((row) => {
               const s = STATUS[row.status];
               return (
                 <li
@@ -64,6 +64,10 @@ export function InventoryHealth({
               );
             })}
           </ul>
+        ) : (
+          <p className="px-4 py-12 text-center text-sm text-muted-foreground">
+            No SKUs tracked yet.
+          </p>
         )}
       </CardContent>
     </Card>

@@ -10,6 +10,7 @@ import { KpiCards } from "./kpi-cards";
 import { PendingApprovalsCard } from "./pending-approvals-card";
 import { AgentsOnDuty } from "./agents-on-duty";
 import { InventoryHealth } from "./inventory-health";
+import { WorkspaceDataBanner } from "./workspace-data-banner";
 
 export function DashboardScreen() {
   const { tenantId, role, getToken, clerkActive } = useSession();
@@ -28,6 +29,8 @@ export function DashboardScreen() {
         title="Dashboard"
         description="What your agents did, what needs you, and where inventory stands."
       />
+
+      <WorkspaceDataBanner />
 
       {dash.error ? (
         <ErrorState message={dash.error.message} onRetry={dash.refetch} />

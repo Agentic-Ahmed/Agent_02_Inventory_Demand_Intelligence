@@ -6,6 +6,7 @@ import { ConsoleShell } from "@/components/console/console-shell";
 import { clerkEnabled } from "@/lib/auth/clerk";
 import { ClerkSessionBridge } from "@/components/auth/clerk-session-bridge";
 import { RequireAuth } from "@/components/auth/require-auth";
+import { WorkspaceGate } from "@/components/auth/workspace-gate";
 
 /**
  * Console root layout. Provides the dev session (tenant + role); when Clerk is on,
@@ -24,5 +25,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     </SessionProvider>
   );
 
-  return clerkEnabled ? <RequireAuth>{consoleTree}</RequireAuth> : consoleTree;
+  return clerkEnabled ? (
+    <RequireAuth>
+      <WorkspaceGate>{consoleTree}</WorkspaceGate>
+    </RequireAuth>
+  ) : (
+    consoleTree
+  );
 }

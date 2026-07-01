@@ -17,6 +17,7 @@ import type {
   TenantInfo,
   Usage,
 } from "./types";
+import { isSampleData } from "./sample-data";
 
 export interface DashboardKpis {
   forecast_accuracy: number; // 0..1 (1 - MAPE)
@@ -384,6 +385,64 @@ export const FIXTURES: Record<string, TenantFixture> = {
   cornershop: CORNERSHOP,
 };
 
+/** True for the built-in demo tenants (dev switcher), false for a real workspace. */
+export function hasFixture(tenantId: string): boolean {
+  return tenantId in FIXTURES;
+}
+
+/** A brand-new, provisioned workspace: no activity yet. */
+export function emptyFixture(tenantId: string, name = "Your workspace"): TenantFixture {
+  return {
+    usage: {
+      tenant_id: tenantId,
+      agent_runs: 0,
+      total_tokens: 0,
+      tool_calls: 0,
+      escalations: 0,
+      approvals_resolved: 0,
+      tokens_by_agent: {},
+    },
+    approvals: [],
+    audit: [],
+    inventory: [],
+    dashboard: {
+      forecast_accuracy: 0,
+      forecast_accuracy_delta: 0,
+      forecast_accuracy_trend: [],
+      stockout_rate: 0,
+      stockout_rate_delta: 0,
+      stockout_rate_trend: [],
+      capital_freed: 0,
+      capital_freed_delta: 0,
+      capital_freed_trend: [],
+      reorder_cycle_hours: 0,
+      reorder_cycle_trend: [],
+    },
+    tenant: {
+      tenant_id: tenantId,
+      name,
+      thresholds: {
+        po_auto_approve_limit: 10_000,
+        max_markdown: 0.4,
+        min_confidence: 0.7,
+        max_supplier_share: 0.6,
+        hard_po_ceiling: 100_000,
+        hard_markdown_ceiling: 0.7,
+      },
+      team: {},
+      you: { role: "manager", label: "Inventory Manager", can_approve: [] },
+    },
+  };
+}
+
+/** The demo dataset loaded into a real workspace so a user can explore it. */
+function sampleDataset(tenantId: string): TenantFixture {
+  return { ...ACME, tenant: { ...ACME.tenant, tenant_id: tenantId } };
+}
+
 export function tenantFixture(tenantId: string): TenantFixture {
-  return FIXTURES[tenantId] ?? ACME;
+  // Built-in demo tenants (dev switcher) always render their seeded data.
+  if (FIXTURES[tenantId]) return FIXTURES[tenantId];
+  // A real workspace: empty until the user opts into sample data.
+  return isSampleData(tenantId) ? sampleDataset(tenantId) : emptyFixture(tenantId);
 }
