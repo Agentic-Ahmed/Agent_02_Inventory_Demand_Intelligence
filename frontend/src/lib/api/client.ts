@@ -13,10 +13,12 @@ import type {
   ApprovalStatus,
   AuditEvent,
   Session,
+  SkuForecast,
   TenantInfo,
   Usage,
 } from "./types";
 import { tenantFixture, type DashboardKpis, type InventoryRow } from "./fixtures";
+import { buildForecast } from "./forecast";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE?.replace(/\/$/, "");
 export const IS_LIVE = Boolean(API_BASE);
@@ -155,4 +157,11 @@ export async function getInventory(session: Session): Promise<InventoryRow[]> {
   return tenantFixture(session.tenantId).inventory;
 }
 
+export async function getForecasts(session: Session): Promise<SkuForecast[]> {
+  // Backend has no forecast endpoint yet; derive from inventory (see forecast.ts).
+  await fakeDelay();
+  return tenantFixture(session.tenantId).inventory.map(buildForecast);
+}
+
 export type { DashboardKpis, InventoryRow };
+export type { SkuForecast } from "./types";

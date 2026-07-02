@@ -79,6 +79,36 @@ export interface TenantInfo {
   you: { role: string; label: string; can_approve: string[] };
 }
 
+/** One day on a forecast path: expected demand with a confidence band. */
+export interface ForecastPoint {
+  day: number; // 1..horizon (days ahead)
+  mean: number;
+  lower: number;
+  upper: number;
+}
+
+export type Horizon = 7 | 30 | 90;
+
+export interface ForecastHorizon {
+  days: Horizon;
+  points: ForecastPoint[];
+  predicted_total: number; // summed expected demand over the horizon
+  daily_mean: number;
+  confidence: number; // 0..1
+  projected_stockout_day: number | null; // day on-hand is exhausted, else null
+}
+
+/** Per-SKU demand forecast (frontend-derived from inventory until the backend
+ *  exposes a forecast endpoint). */
+export interface SkuForecast {
+  sku: string;
+  name: string;
+  status: "healthy" | "low" | "critical" | "overstock";
+  on_hand: number;
+  history: number[]; // recent daily actuals, oldest -> newest (day -(n-1)..0)
+  horizons: Record<Horizon, ForecastHorizon>;
+}
+
 /** POST /api/chat -> ChatResponse */
 export interface ChatResponse {
   answer: string;
