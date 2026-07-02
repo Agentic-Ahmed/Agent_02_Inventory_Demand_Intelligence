@@ -12,6 +12,7 @@ import type {
   ApprovalActionBody,
   ApprovalStatus,
   AuditEvent,
+  ChatStreamEvent,
   Session,
   SkuForecast,
   TenantInfo,
@@ -190,6 +191,119 @@ export async function getForecasts(session: Session): Promise<SkuForecast[]> {
   // Backend has no forecast endpoint yet; derive from inventory (see forecast.ts).
   await fakeDelay();
   return tenantFixture(session.tenantId).inventory.map(buildForecast);
+}
+
+// ---- chat (SSE streaming) ----
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** Parse one SSE frame ("event: <type>\ndata: <json>") into a ChatStreamEvent. */
+function parseSseFrame(frame: string): ChatStreamEvent | null {
+  let type = "";
+  let data = "";
+  for (const line of frame.split("\n")) {
+    if (line.startsWith("event:")) type = line.slice(6).trim();
+    else if (line.startsWith("data:")) data += line.slice(5).trim();
+  }
+  if (!type) return null;
+  let payload: Record<string, unknown> = {};
+  if (data) {
+    try {
+      payload = JSON.parse(data);
+    } catch {
+      /* ignore malformed frame */
+    }
+  }
+  return { type, ...payload } as ChatStreamEvent;
+}
+
+/**
+ * Stream one orchestrator turn. Emits tool_call / tool_output / text / done / error
+ * events to `onEvent`. Live: POST /api/chat/stream (SSE over fetch). Fixtures: a
+ * short simulated turn so the panel works offline.
+ */
+export async function streamChat(
+  session: Session,
+  message: string,
+  sku: string,
+  onEvent: (ev: ChatStreamEvent) => void,
+  signal?: AbortSignal,
+): Promise<void> {
+  if (!IS_LIVE) return simulateChat(onEvent, signal);
+
+  let res: Response;
+  try {
+    const token = session.getToken ? await session.getToken() : null;
+    res = await fetch(`${API_BASE}/api/chat/stream`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Tenant-Id": session.tenantId,
+        "X-User-Role": session.role,
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ message, sku }),
+      signal,
+    });
+  } catch (err) {
+    onEvent({ type: "error", detail: err instanceof Error ? err.message : "network error" });
+    return;
+  }
+  if (!res.ok || !res.body) {
+    const body = res.body ? await res.text().catch(() => "") : "";
+    onEvent({ type: "error", detail: `${res.status} ${res.statusText}${body ? ` — ${body.slice(0, 160)}` : ""}` });
+    return;
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buf = "";
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      let sep: number;
+      while ((sep = buf.indexOf("\n\n")) !== -1) {
+        const frame = buf.slice(0, sep);
+        buf = buf.slice(sep + 2);
+        const ev = parseSseFrame(frame);
+        if (ev) onEvent(ev);
+      }
+    }
+  } catch (err) {
+    if ((err as Error).name !== "AbortError") {
+      onEvent({ type: "error", detail: err instanceof Error ? err.message : "stream error" });
+    }
+  }
+}
+
+async function simulateChat(onEvent: (ev: ChatStreamEvent) => void, signal?: AbortSignal): Promise<void> {
+  const steps: ChatStreamEvent[] = [
+    { type: "tool_call", tool: "get_sales_history" },
+    { type: "tool_output", specialist: "forecasting", status: "ok" },
+    { type: "tool_call", tool: "get_current_inventory" },
+    { type: "tool_output", specialist: "reorder", status: "ok" },
+  ];
+  const answer =
+    "Demo mode: I can't reach the orchestrator, so here's the shape of a real reply — I'd pull recent sales and on-hand stock, forecast demand, and flag any reorder above your limit for approval. Set NEXT_PUBLIC_API_BASE to the FastAPI URL for live answers.";
+  for (const s of steps) {
+    if (signal?.aborted) return;
+    onEvent(s);
+    await sleep(400);
+  }
+  const words = answer.split(" ");
+  for (let i = 0; i < words.length; i++) {
+    if (signal?.aborted) return;
+    onEvent({ type: "text", delta: (i ? " " : "") + words[i] });
+    await sleep(28);
+  }
+  onEvent({
+    type: "done",
+    answer,
+    tools_called: ["get_sales_history", "get_current_inventory"],
+    escalations: [],
+  });
 }
 
 export type { DashboardKpis, InventoryRow };
