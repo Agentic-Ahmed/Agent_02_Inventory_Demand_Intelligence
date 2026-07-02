@@ -104,7 +104,7 @@ export function ForecastChart({
         aria-label={`${forecast.name} demand forecast over ${horizon.days} days`}
       >
         <div className="relative h-full w-full">
-          <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden className="h-full w-full overflow-visible">
+          <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden className="h-full w-full">
             {gridValues.map((gv, i) => (
               <line
                 key={i}

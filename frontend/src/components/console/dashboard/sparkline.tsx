@@ -70,7 +70,7 @@ export function Sparkline({
       onPointerMove={handleMove}
       onPointerLeave={() => setActive(null)}
     >
-      <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" aria-hidden className="h-9 w-full overflow-visible">
+      <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" aria-hidden className="h-9 w-full">
         <defs>
           <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="currentColor" stopOpacity="0.16" />
