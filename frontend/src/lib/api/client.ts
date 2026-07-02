@@ -15,6 +15,7 @@ import type {
   Session,
   SkuForecast,
   TenantInfo,
+  TenantThresholds,
   Usage,
 } from "./types";
 import { tenantFixture, type DashboardKpis, type InventoryRow } from "./fixtures";
@@ -128,22 +129,50 @@ export async function getAudit(session: Session, limit = 100): Promise<AuditEven
   return tenantFixture(session.tenantId).audit.slice(0, limit);
 }
 
+// In-session edits made on the Settings screen. Backend has no PATCH /api/tenant
+// yet, so fixture-mode saves persist here for the session (survive refetch across
+// empty/sample tenants); wire to the API once the endpoint lands.
+const tenantEdits: Record<string, { name?: string; thresholds?: Partial<TenantThresholds> }> = {};
+
 export async function getTenant(session: Session): Promise<TenantInfo> {
   if (IS_LIVE) return apiFetch<TenantInfo>(session, "/api/tenant");
   await fakeDelay();
   const t = tenantFixture(session.tenantId).tenant;
+  const edit = tenantEdits[session.tenantId] ?? {};
   // Reflect the currently-selected role in `you` (fixtures store a default).
   const canApproveList = Object.entries(SPECIALIST_ROLE)
     .filter(([, owner]) => canApprove(session.role, owner))
     .map(([spec]) => spec);
   return {
     ...t,
+    name: edit.name ?? t.name,
+    thresholds: { ...t.thresholds, ...edit.thresholds },
     you: {
       role: session.role,
       label: ROLE_LABEL[session.role] ?? session.role,
       can_approve: canApproveList,
     },
   };
+}
+
+export async function updateTenant(
+  session: Session,
+  patch: { name?: string; thresholds?: Partial<TenantThresholds> },
+): Promise<TenantInfo> {
+  if (IS_LIVE) {
+    // Backend endpoint pending; contract is a partial tenant patch.
+    return apiFetch<TenantInfo>(session, "/api/tenant", {
+      method: "PATCH",
+      body: JSON.stringify(patch),
+    });
+  }
+  await fakeDelay();
+  const prev = tenantEdits[session.tenantId] ?? {};
+  tenantEdits[session.tenantId] = {
+    name: patch.name ?? prev.name,
+    thresholds: { ...prev.thresholds, ...patch.thresholds },
+  };
+  return getTenant(session);
 }
 
 export async function getDashboard(session: Session): Promise<DashboardKpis> {
