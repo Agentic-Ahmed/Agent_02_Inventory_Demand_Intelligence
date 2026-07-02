@@ -16,6 +16,10 @@ backend/.env
 .env
 conversations.db
 *.db
+# SQLite WAL/SHM sidecar files
+*.db-wal
+*.db-shm
+*.db-journal
 
 # Eval checkpoints and run logs
 backend/.eval_state/

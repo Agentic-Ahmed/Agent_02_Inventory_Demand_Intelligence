@@ -19,7 +19,9 @@ router = APIRouter(prefix="/api/approvals", tags=["approvals"])
 
 @router.get("", response_model=list[ApprovalOut])
 async def list_approvals(status: str = "pending", tenant: TenantContext = Depends(get_tenant)):
-    return STORE.list(tenant.tenant_id, status=status or None)
+    # "all" (or empty) -> no status filter; otherwise filter by the given status.
+    s = None if status in ("", "all") else status
+    return STORE.list(tenant.tenant_id, status=s)
 
 
 @router.post("/{item_id}", response_model=ApprovalOut)

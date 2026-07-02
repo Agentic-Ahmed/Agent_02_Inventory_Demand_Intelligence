@@ -93,8 +93,8 @@ export async function getApprovals(
   status: ApprovalStatus | "all" = "pending",
 ): Promise<Approval[]> {
   if (IS_LIVE) {
-    const q = status === "all" ? "" : `?status=${status}`;
-    return apiFetch<Approval[]>(session, `/api/approvals${q}`);
+    // Backend treats status=all as "no filter" (see routes/approvals.py).
+    return apiFetch<Approval[]>(session, `/api/approvals?status=${status}`);
   }
   await fakeDelay();
   const all = tenantFixture(session.tenantId).approvals;
