@@ -247,3 +247,27 @@ Rule: money decisions use **buttons** (auditable), with chat as the explanation 
 8. Observability (Logfire/Langfuse).
 9. Next.js frontend (dashboard → approval inbox → chat).
 10. Multi-tenancy hardening + deployment.
+
+---
+
+## 13. On hold / interim rules (READ THIS — remind the user)
+
+**ON HOLD (paused by the user 2026-07-03): free-provider / quota hardening.**
+The free Gemini keys hit small daily quotas (esp. `gemini-2.5-pro` ≈ no free quota;
+`flash-lite` on the Anomaly agent is flaky). A plan exists to fix this but is deliberately
+**not** being worked on yet. When the user reopens this project, **remind them this is on
+hold** and offer to resume it. The resume plan:
+  - Finish the `FallbackModel` chains for the 4 agents that lack them — **Orchestrator,
+    Warehouse, Markdown, Anomaly** (Warehouse/Markdown/Anomaly currently call `GEMINI()`
+    directly, so a 429 is a dead end; wrap them in `agent_fallback_model` like Reorder).
+  - Free quota is per *account*, not per *key* → give agents **different providers**
+    (Groq / Cerebras / Gemini-flash / Mistral / GitHub Models), not more keys on one account.
+  - Consider **Ollama (local)** for the always-on Anomaly guardrail = zero quota.
+  - Phase-2 Pydantic formatters need a *capable* model (weak free models break strict JSON).
+  - Current dev workaround: orchestrator runs on `flash` via `GEMINI_MODEL_ORCHESTRATOR`
+    in the gitignored `backend/.env` (see `agent_model()` in `core/config.py`).
+
+**INTERIM RULE — quota reporting:** while the above is on hold, on **every** rate-limit /
+quota-exhaustion error (HTTP 429 / `RESOURCE_EXHAUSTED` from any provider), tell the user
+plainly: **"Your daily usage limit has been reached."** Do NOT re-diagnose it or build
+workarounds each time — just surface that message and move on.
