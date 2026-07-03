@@ -33,7 +33,7 @@ export function SpotlightCard({
     <div
       onMouseMove={handleMove}
       className={cn(
-        "group relative overflow-hidden rounded-2xl border border-border bg-card transition-transform duration-300 hover:-translate-y-1",
+        "group relative overflow-hidden rounded-2xl border border-white/15 bg-transparent transition-transform duration-300 hover:-translate-y-1 dark:border-white/10",
         className,
       )}
     >
@@ -43,8 +43,8 @@ export function SpotlightCard({
         className="pointer-events-none absolute -inset-px rounded-2xl opacity-0 transition-opacity duration-300 group-hover:opacity-100"
         style={{ background: ring }}
       />
-      {/* inner fill so only the border shows the ring */}
-      <div className="absolute inset-px rounded-[calc(1rem-1px)] bg-card" />
+      {/* inner fill = the frosted-glass surface (so only the border shows the ring) */}
+      <div className="glass absolute inset-px rounded-[calc(1rem-1px)] bg-white/65 dark:bg-white/10" />
       {/* surface spotlight */}
       <motion.div
         aria-hidden

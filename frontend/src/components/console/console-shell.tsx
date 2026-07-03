@@ -21,6 +21,7 @@ import { useQuery } from "@/lib/api/use-query";
 import { getApprovals, IS_LIVE } from "@/lib/api/client";
 import { clerkEnabled } from "@/lib/auth/clerk";
 import { ClerkOrgControls } from "@/components/auth/clerk-org-controls";
+import { LogoutButton } from "@/components/auth/logout-button";
 import { cn } from "@/lib/utils";
 import { NAV, isActive } from "./nav";
 import { TenantSwitcher } from "./tenant-switcher";
@@ -69,6 +70,7 @@ function SidebarFooter() {
   return (
     <div className="flex flex-col gap-2 border-t border-border/60 p-3">
       {clerkEnabled ? <ClerkOrgControls /> : <TenantSwitcher />}
+      {clerkEnabled ? <LogoutButton /> : null}
       <div className="flex items-center justify-between px-1">
         <span
           className={cn(

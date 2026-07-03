@@ -31,7 +31,7 @@ export function SiteHeader() {
   const [open, setOpen] = React.useState(false);
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-border/60 bg-background/80 backdrop-blur-xl">
+    <header className="glass sticky top-0 z-50 w-full border-b border-white/15 bg-white/60 dark:border-white/10 dark:bg-white/10">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <Link href="/" className="shrink-0">
           <Brand />
@@ -59,7 +59,7 @@ export function SiteHeader() {
             size="sm"
             className="hidden sm:inline-flex"
           >
-            Sign in
+            Log in
           </ButtonLink>
           <ButtonLink
             href={START_HREF}
@@ -106,7 +106,7 @@ export function SiteHeader() {
                     variant="outline"
                     onClick={() => setOpen(false)}
                   >
-                    Sign in
+                    Log in
                   </ButtonLink>
                   <ButtonLink
                     href={START_HREF}
