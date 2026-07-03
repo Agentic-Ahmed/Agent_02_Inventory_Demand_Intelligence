@@ -73,6 +73,16 @@ def agent_key(agent: str) -> str | None:
     return os.environ.get(AGENT_KEY_ENV[agent])
 
 
+def agent_model(agent: str) -> str:
+    """Resolve an agent's model, allowing a per-agent env override.
+
+    Set `GEMINI_MODEL_{AGENT}` (e.g. GEMINI_MODEL_ORCHESTRATOR=gemini-2.5-flash)
+    to override the production default in AGENT_MODEL. Used for free-tier dev,
+    where gemini-2.5-pro has ~no quota; the committed default stays as documented.
+    """
+    return os.environ.get(f"GEMINI_MODEL_{agent.upper()}", AGENT_MODEL[agent])
+
+
 def GEMINI(model_name: str, api_key: str | None) -> LitellmModel:
     """Build a Gemini model (via LiteLLM) for an agent.
 

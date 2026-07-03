@@ -28,7 +28,7 @@ from agents import (
     OutputGuardrailTripwireTriggered,
 )
 
-from ..core.config import AGENT_MODEL, agent_key
+from ..core.config import agent_model, agent_key
 from ..core.fallback_model import agent_fallback_model
 from ..core.context import RunContext
 from ..guardrails.input_guardrails import scope_guardrail
@@ -175,7 +175,7 @@ def orchestrator_instructions(ctx: RunContextWrapper[RunContext], agent: Agent) 
 def build_orchestrator(model=None) -> Agent:
     """The coordinator agent (gemini-2.5-pro by default; fallback-ready)."""
     if model is None:
-        model = agent_fallback_model("orchestrator", AGENT_MODEL["orchestrator"], agent_key("orchestrator"))
+        model = agent_fallback_model("orchestrator", agent_model("orchestrator"), agent_key("orchestrator"))
     return Agent(
         name="Inventory Orchestrator",
         instructions=orchestrator_instructions,
