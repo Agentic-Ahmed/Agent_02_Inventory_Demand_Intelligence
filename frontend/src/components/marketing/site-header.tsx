@@ -31,7 +31,7 @@ export function SiteHeader() {
   const [open, setOpen] = React.useState(false);
 
   return (
-    <header className="glass sticky top-0 z-50 w-full border-b border-white/15 bg-white/60 dark:border-white/10 dark:bg-white/10">
+    <header className="glass sticky top-0 z-50 w-full border-b border-black/[0.06] bg-white/70 dark:border-white/10 dark:bg-white/10">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <Link href="/" className="shrink-0">
           <Brand />

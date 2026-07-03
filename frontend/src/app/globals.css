@@ -250,6 +250,40 @@
       radial-gradient(46rem 42rem at 10% 118%, color-mix(in oklch, var(--brand) 40%, transparent), transparent 62%);
   }
 
+  /* Landing-page brand field: much softer than the console's .app-ambient so
+     LIGHT mode reads as a gentle tint (not an intrusive teal wash). Dark keeps
+     the vivid depth. Best-practice: subtle background so the glass + text stay
+     legible. */
+  .landing-ambient {
+    background:
+      radial-gradient(52rem 44rem at 6% -8%, color-mix(in oklch, var(--brand) 14%, transparent), transparent 60%),
+      radial-gradient(50rem 44rem at 100% 4%, color-mix(in oklch, var(--brand) 8%, transparent), transparent 62%),
+      radial-gradient(48rem 44rem at 88% 116%, color-mix(in oklch, var(--brand) 11%, transparent), transparent 62%),
+      radial-gradient(46rem 42rem at 10% 118%, color-mix(in oklch, var(--brand) 7%, transparent), transparent 64%);
+  }
+  .dark .landing-ambient {
+    background:
+      radial-gradient(52rem 44rem at 6% -8%, color-mix(in oklch, var(--brand) 80%, transparent), transparent 58%),
+      radial-gradient(50rem 44rem at 100% 4%, color-mix(in oklch, var(--brand) 50%, transparent), transparent 58%),
+      radial-gradient(48rem 44rem at 88% 116%, color-mix(in oklch, var(--brand) 60%, transparent), transparent 60%),
+      radial-gradient(46rem 42rem at 10% 118%, color-mix(in oklch, var(--brand) 38%, transparent), transparent 62%);
+  }
+
+  /* Eased fade from the always-dark hero into the content below, so the seam
+     blends subtly (no visible mid-gray band from a linear fade). Uses the dark
+     canvas color explicitly because the hero is dark even in light mode. */
+  .hero-fade {
+    background: linear-gradient(
+      to bottom,
+      oklch(0.129 0.042 264.695) 0%,
+      oklch(0.129 0.042 264.695 / 0.88) 15%,
+      oklch(0.129 0.042 264.695 / 0.6) 34%,
+      oklch(0.129 0.042 264.695 / 0.34) 54%,
+      oklch(0.129 0.042 264.695 / 0.14) 74%,
+      transparent 100%
+    );
+  }
+
   /* Respect users who ask for less transparency: drop the blur. */
   @media (prefers-reduced-transparency: reduce) {
     .glass {

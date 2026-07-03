@@ -13,13 +13,13 @@ const STATS = [
 export function ProofStripV2() {
   return (
     <section className="relative bg-background">
-      {/* transition out of the dark hero */}
+      {/* transition out of the dark hero — eased fade so the seam blends subtly */}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-x-0 -top-px h-28 bg-gradient-to-b from-[oklch(0.129_0.042_264.695)] to-transparent"
+        className="hero-fade pointer-events-none absolute inset-x-0 -top-px h-44"
       />
 
-      <div className="mx-auto max-w-7xl px-4 pt-24 pb-16 sm:px-6 lg:px-8 lg:pt-28 lg:pb-20">
+      <div className="mx-auto max-w-7xl px-4 pt-40 pb-16 sm:px-6 lg:px-8 lg:pt-44 lg:pb-20">
         <Reveal>
           <p className="text-center text-sm font-medium uppercase tracking-[0.18em] text-muted-foreground">
             Outcomes our customers see

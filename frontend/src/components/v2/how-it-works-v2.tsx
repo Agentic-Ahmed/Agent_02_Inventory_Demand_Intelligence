@@ -52,7 +52,7 @@ export function HowItWorksV2() {
   return (
     <section id="how" className="relative scroll-mt-20 overflow-hidden">
       {/* teal brand field so the frosted step badges read as glass */}
-      <div aria-hidden className="app-ambient pointer-events-none absolute inset-0 z-0" />
+      <div aria-hidden className="landing-ambient pointer-events-none absolute inset-0 z-0" />
       <div className="relative z-10 mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 lg:py-28">
         <div className="mx-auto max-w-2xl text-center">
           <h2 className="text-4xl font-semibold tracking-tight text-foreground lg:text-5xl">
@@ -75,7 +75,7 @@ export function HowItWorksV2() {
               const Icon = step.icon;
               return (
                 <li key={step.title} className="howstep relative text-center lg:text-left">
-                  <span className="howicon glass relative z-10 mx-auto flex size-16 items-center justify-center rounded-2xl border-2 border-white/20 bg-white/60 text-primary shadow-lg shadow-black/5 dark:border-white/10 dark:bg-white/10 lg:mx-0">
+                  <span className="howicon glass relative z-10 mx-auto flex size-16 items-center justify-center rounded-2xl border-2 border-black/5 bg-white/70 text-primary shadow-lg shadow-black/5 dark:border-white/10 dark:bg-white/10 lg:mx-0">
                     <Icon className="size-7" />
                   </span>
                   <h3 className="mt-6 text-lg font-semibold text-foreground">

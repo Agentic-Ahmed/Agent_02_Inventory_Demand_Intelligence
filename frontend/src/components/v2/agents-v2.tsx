@@ -20,7 +20,7 @@ export function AgentsV2() {
   return (
     <section id="agents" className="relative scroll-mt-20 overflow-hidden">
       {/* teal brand field so the frosted agent cards read as glass */}
-      <div aria-hidden className="app-ambient pointer-events-none absolute inset-0 z-0" />
+      <div aria-hidden className="landing-ambient pointer-events-none absolute inset-0 z-0" />
       <div className="relative z-10 mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 lg:py-28">
         <div className="mx-auto max-w-2xl text-center">
           <h2 className="text-4xl font-semibold tracking-tight text-foreground lg:text-5xl">
