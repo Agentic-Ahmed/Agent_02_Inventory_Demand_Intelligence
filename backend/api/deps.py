@@ -23,8 +23,10 @@ def get_tenant(
     session: Optional[str] = Cookie(default=None, alias="__session"),  # Clerk's session cookie
     x_tenant_id: Optional[str] = Header(default="acme"),
     x_user_role: Optional[str] = Header(default="planner"),
+    x_user_id: Optional[str] = Header(default="user"),
 ) -> TenantContext:
-    """Resolve the caller's tenant + role, then attach that tenant's thresholds."""
+    """Resolve the caller's tenant + role + user id, then attach that tenant's thresholds.
+    The user id keys per-user chat memory (see core.sessions)."""
     if auth.clerk_enabled():
         token = auth.bearer_token_from(authorization, session)
         if not token:
@@ -34,9 +36,13 @@ def get_tenant(
         except Exception as exc:  # noqa: BLE001 - any verification failure = unauthorized
             raise HTTPException(status_code=401, detail=f"invalid session token: {type(exc).__name__}")
         tenant_id, role = auth.identity_from_claims(claims)
-        return build_tenant_context(tenant_id, role)
+        ctx = build_tenant_context(tenant_id, role)
+        ctx.user_id = auth.user_id_from_claims(claims)
+        return ctx
     # Dev fallback: no auth provider configured yet -> trust the headers.
-    return build_tenant_context(x_tenant_id or "acme", x_user_role or "planner")
+    ctx = build_tenant_context(x_tenant_id or "acme", x_user_role or "planner")
+    ctx.user_id = x_user_id or "user"
+    return ctx
 
 
 def run_context_for(tenant: TenantContext, sku: str) -> RunContext:

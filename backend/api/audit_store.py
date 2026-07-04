@@ -18,6 +18,27 @@ from ..core.db import DB
 
 _COLUMNS = ("id", "tenant_id", "ts", "event_type", "actor", "summary", "detail")
 
+# Collapse an agent's display name (the audit 'actor', e.g. "Demand Forecasting -
+# Formatter") to its short key, so per-agent token metering matches the frontend
+# contract (AgentKey). Each specialist's Data-Agent + Formatter sub-agents fold into
+# one bucket, giving a clean per-specialist total on the Billing screen.
+_AGENT_KEYWORDS = (
+    ("orchestrator", "orchestrator"),
+    ("forecast", "forecasting"),
+    ("reorder", "reorder"),
+    ("warehouse", "warehouse"),
+    ("markdown", "markdown"),
+    ("anomaly", "anomaly"),
+)
+
+
+def _agent_key(name: Optional[str]) -> str:
+    n = (name or "").lower()
+    for kw, key in _AGENT_KEYWORDS:
+        if kw in n:
+            return key
+    return "other"
+
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -82,7 +103,7 @@ class AuditLog:
                 runs += 1
                 t = detail.get("total_tokens") or 0
                 tokens += t
-                key = r.get("actor") or "agent"
+                key = _agent_key(r.get("actor"))
                 tokens_by_agent[key] = tokens_by_agent.get(key, 0) + t
             elif et == "tool_call":
                 tool_calls += 1

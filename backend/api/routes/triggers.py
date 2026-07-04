@@ -20,7 +20,10 @@ _PROMPTS = {
 async def fire_trigger(req: TriggerRequest, tenant: TenantContext = Depends(get_tenant)) -> TriggerResponse:
     prompt = _PROMPTS[req.type].format(sku=req.sku, reason=req.reason or "unspecified")
     try:
-        answer, _tools, escalations = await run_orchestrator_collect(prompt, tenant, req.sku)
+        # session=None: autonomous runs are stateless -- they must not pollute a
+        # user's interactive chat memory.
+        answer, _tools, escalations = await run_orchestrator_collect(
+            prompt, tenant, req.sku, session=None)
     except Exception as exc:  # noqa: BLE001 - accept the trigger; report the run failure
         return TriggerResponse(accepted=True, type=req.type, sku=req.sku,
                                answer=f"[run error] {type(exc).__name__}: {str(exc)[:120]}")

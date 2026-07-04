@@ -39,8 +39,11 @@ let idSeq = 0;
 const nextId = () => `m${++idSeq}`;
 
 export function ChatScreen() {
-  const { tenantId, role, getToken } = useSession();
-  const session = React.useMemo(() => ({ tenantId, role, getToken }), [tenantId, role, getToken]);
+  const { tenantId, role, userKey, getToken } = useSession();
+  const session = React.useMemo(
+    () => ({ tenantId, role, userId: userKey, getToken }),
+    [tenantId, role, userKey, getToken],
+  );
 
   const [messages, setMessages] = React.useState<Message[]>([]);
   const [input, setInput] = React.useState("");

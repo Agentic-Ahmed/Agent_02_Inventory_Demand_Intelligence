@@ -140,11 +140,13 @@ export type ChatStreamEvent =
 
 /**
  * The caller's identity passed to the client. tenantId/role drive the dev
- * X-Tenant-Id / X-User-Role headers; getToken (present once Clerk is on) supplies
- * the verified session JWT sent as `Authorization: Bearer`.
+ * X-Tenant-Id / X-User-Role headers; userId (the signed-in user, or "anon"/"user"
+ * in dev) drives X-User-Id so the backend keys per-user chat memory; getToken
+ * (present once Clerk is on) supplies the verified session JWT sent as Bearer.
  */
 export interface Session {
   tenantId: string;
   role: string;
+  userId?: string;
   getToken?: () => Promise<string | null>;
 }

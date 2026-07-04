@@ -20,10 +20,15 @@ from agents import Runner
 from ..agents.orchestrator import build_orchestrator
 from ..core.context import TenantContext
 from ..core.roles import required_role_for
+from ..core.sessions import make_session
 from ..observability.audit_hooks import AuditHooks
 from .deps import run_context_for
 from .approval_store import STORE
 from .audit_store import AUDIT
+
+# Sentinel so callers can pass session=None to explicitly disable memory (used by
+# stateless triggers), while the default builds a per-(tenant, user) session.
+_DEFAULT_SESSION = object()
 
 _ACTION_TYPE = {
     "forecasting": "forecast_review",
@@ -65,13 +70,17 @@ def _maybe_escalate(d: Optional[dict], tenant: TenantContext, sku: str) -> Optio
 
 
 async def run_orchestrator_collect(
-    message: str, tenant: TenantContext, sku: str, orchestrator=None
+    message: str, tenant: TenantContext, sku: str, orchestrator=None, session=_DEFAULT_SESSION
 ) -> tuple[str, list[str], list[str]]:
-    """Returns (final_answer, tools_called, escalation_item_ids)."""
+    """Returns (final_answer, tools_called, escalation_item_ids).
+
+    Per-(tenant, user) chat memory is on by default; pass session=None to disable it
+    (e.g. for stateless scheduled/event triggers)."""
     ctx = run_context_for(tenant, sku)
     orch = orchestrator or build_orchestrator()
+    sess = make_session(tenant.tenant_id, tenant.user_id) if session is _DEFAULT_SESSION else session
     result = await Runner.run(orch, message, context=ctx, max_turns=20,
-                              hooks=AuditHooks(tenant.tenant_id, sku))
+                              hooks=AuditHooks(tenant.tenant_id, sku), session=sess)
 
     tools_called: list[str] = []
     escalation_ids: list[str] = []
@@ -89,7 +98,7 @@ async def run_orchestrator_collect(
 
 
 async def run_orchestrator_stream(
-    message: str, tenant: TenantContext, sku: str, orchestrator=None
+    message: str, tenant: TenantContext, sku: str, orchestrator=None, session=_DEFAULT_SESSION
 ):
     """Async-generate (event_type, payload) tuples for one orchestrator turn (SSE).
 
@@ -101,11 +110,12 @@ async def run_orchestrator_stream(
     """
     ctx = run_context_for(tenant, sku)
     orch = orchestrator or build_orchestrator()
+    sess = make_session(tenant.tenant_id, tenant.user_id) if session is _DEFAULT_SESSION else session
     tools_called: list[str] = []
     escalation_ids: list[str] = []
 
     result = Runner.run_streamed(orch, message, context=ctx, max_turns=20,
-                                 hooks=AuditHooks(tenant.tenant_id, sku))
+                                 hooks=AuditHooks(tenant.tenant_id, sku), session=sess)
     async for event in result.stream_events():
         if event.type == "raw_response_event":
             data = getattr(event, "data", None)

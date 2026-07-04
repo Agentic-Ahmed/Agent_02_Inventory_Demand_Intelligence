@@ -12,6 +12,7 @@ class TenantContext:
     """Per-tenant config + guardrail thresholds (blueprint S5 values)."""
     tenant_id: str
     user_role: str = "planner"
+    user_id: str = "user"                     # who is asking -> keys per-user chat memory
     po_auto_approve_limit: float = 10_000.0   # spend guardrail (#1)
     max_markdown: float = 0.40                # markdown depth guardrail (#2)
     min_confidence: float = 0.70              # forecast confidence guardrail (#3)

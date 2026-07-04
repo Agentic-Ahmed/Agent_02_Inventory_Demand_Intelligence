@@ -12,6 +12,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { num, compactNum } from "@/lib/format";
+import { AGENTS, type AgentKey } from "@/lib/agents";
+import { cn } from "@/lib/utils";
 import { SettingsCard, SectionHeader } from "./ui";
 
 const PLAN = {
@@ -34,6 +36,13 @@ export function BillingSection() {
 
   const usage = query.data;
   const pctUsed = usage ? Math.min(100, (usage.total_tokens / PLAN.tokenQuota) * 100) : 0;
+
+  // Per-agent token breakdown (backend metering), largest first.
+  const agentRows = Object.entries(usage?.tokens_by_agent ?? {})
+    .map(([key, tokens]) => ({ key, tokens: tokens ?? 0 }))
+    .filter((r) => r.tokens > 0)
+    .sort((a, b) => b.tokens - a.tokens);
+  const agentTotal = agentRows.reduce((s, r) => s + r.tokens, 0) || 1;
 
   return (
     <div>
@@ -102,6 +111,35 @@ export function BillingSection() {
                 <UsageStat label="Escalations" value={num(usage.escalations)} />
                 <UsageStat label="Approvals resolved" value={num(usage.approvals_resolved)} />
               </div>
+
+              {agentRows.length > 0 ? (
+                <div className="border-t pt-5">
+                  <p className="mb-3 text-sm font-medium text-foreground">Tokens by agent</p>
+                  <ul className="space-y-3">
+                    {agentRows.map(({ key, tokens }) => {
+                      const meta = AGENTS[key as AgentKey];
+                      const Icon = meta?.icon;
+                      const pct = Math.round((tokens / agentTotal) * 100);
+                      return (
+                        <li key={key}>
+                          <div className="mb-1 flex items-center justify-between text-sm">
+                            <span className="flex items-center gap-2">
+                              {Icon ? <Icon className={cn("size-4", meta.text)} /> : null}
+                              <span className="text-foreground">{meta?.name ?? key}</span>
+                            </span>
+                            <span className="tabular-nums text-muted-foreground">
+                              {compactNum(tokens)} · {pct}%
+                            </span>
+                          </div>
+                          <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                            <div className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              ) : null}
             </CardContent>
           </SettingsCard>
         </div>

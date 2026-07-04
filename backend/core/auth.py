@@ -56,6 +56,12 @@ def identity_from_claims(claims: dict) -> tuple[str, str]:
     return tenant_id, role
 
 
+def user_id_from_claims(claims: dict) -> str:
+    """Verified Clerk claims -> stable user id (the JWT subject). Keys per-user chat
+    memory so one tenant's users don't share conversation history."""
+    return claims.get("sub") or "user"
+
+
 def bearer_token_from(authorization: Optional[str], session_cookie: Optional[str]) -> Optional[str]:
     """Pull the JWT from an 'Authorization: Bearer ...' header or the __session cookie."""
     if authorization and authorization.lower().startswith("bearer "):
