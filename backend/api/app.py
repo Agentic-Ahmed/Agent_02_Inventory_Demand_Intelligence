@@ -5,10 +5,17 @@ Serves the orchestrator + approval queue + triggers + tenant settings + audit tr
     uvicorn backend.api.app:app --reload
 Deployed to Google Cloud Run in prod (CLAUDE.md S2).
 """
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .routes import chat, approvals, triggers, tenant, audit, usage, team
+
+# Allowed browser origins: local dev + the Vercel deployment by default; override with
+# CORS_ORIGINS (comma-separated) in prod — no code change needed.
+_DEFAULT_ORIGINS = "http://localhost:3000,http://127.0.0.1:3000,https://quorum-nu-sand.vercel.app"
+ALLOWED_ORIGINS = [o.strip() for o in os.environ.get("CORS_ORIGINS", _DEFAULT_ORIGINS).split(",") if o.strip()]
 
 app = FastAPI(
     title="Inventory & Demand Intelligence API",
@@ -16,10 +23,10 @@ app = FastAPI(
     description="Orchestrator chat, approval queue, triggers, tenant settings, audit trail, usage.",
 )
 
-# Dev CORS: allow the Next.js frontend (localhost) to call the API. Lock down in prod.
+# Allow the Next.js frontend (local dev + the deployed Vercel origin) to call the API.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
