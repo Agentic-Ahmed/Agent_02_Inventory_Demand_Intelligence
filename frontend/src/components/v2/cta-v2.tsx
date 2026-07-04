@@ -47,7 +47,8 @@ export function CtaV2() {
           <Brand />
           <nav className="flex items-center gap-6 text-sm text-muted-foreground">
             <Link href="#how" className="hover:text-foreground">How it works</Link>
-            <Link href="#agents" className="hover:text-foreground">Agents</Link>
+            <Link href="#pricing" className="hover:text-foreground">Pricing</Link>
+            <Link href="#faq" className="hover:text-foreground">FAQ</Link>
             <Link href={SIGN_IN_HREF} className="hover:text-foreground">Log in</Link>
           </nav>
           <p className="text-xs text-muted-foreground">© {new Date().getFullYear()} Quorum</p>

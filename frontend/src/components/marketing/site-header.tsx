@@ -20,6 +20,8 @@ const NAV = [
   { label: "How it works", href: "#how" },
   { label: "Agents", href: "#agents" },
   { label: "Control", href: "#control" },
+  { label: "Pricing", href: "#pricing" },
+  { label: "FAQ", href: "#faq" },
 ];
 
 // With Clerk on, the buttons go to real sign-in/up; in dev they enter the
