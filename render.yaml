@@ -1,0 +1,32 @@
+# Render Blueprint — one-click deploy of the FastAPI backend from this repo.
+# Render builds the root Dockerfile automatically. Secrets (sync: false) are entered
+# once in the Render dashboard when you create the Blueprint — never stored in git.
+services:
+  - type: web
+    name: quorum-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      # Run the orchestrator on flash (free-tier has ~no gemini-2.5-pro quota).
+      - key: GEMINI_MODEL_ORCHESTRATOR
+        value: gemini-2.5-flash
+      # Allow the deployed Vercel frontend to call this API.
+      - key: CORS_ORIGINS
+        value: https://quorum-nu-sand.vercel.app
+      # --- secrets: paste these from your backend/.env in the Render UI ---
+      - key: DATABASE_URL
+        sync: false
+      - key: GEMINI_API_KEY_ORCHESTRATOR
+        sync: false
+      - key: GEMINI_API_KEY_FORECASTING
+        sync: false
+      - key: GEMINI_API_KEY_REORDER
+        sync: false
+      - key: GEMINI_API_KEY_WAREHOUSE
+        sync: false
+      - key: GEMINI_API_KEY_MARKDOWN
+        sync: false
+      - key: GEMINI_API_KEY_ANOMALY
+        sync: false
