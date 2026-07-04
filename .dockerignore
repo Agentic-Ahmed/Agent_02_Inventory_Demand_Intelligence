@@ -1,0 +1,24 @@
+# Keep the image small and secret-free: only backend/ (minus its .env) is needed.
+.git/
+.claude/
+.venv/
+venv/
+frontend/
+node_modules/
+infra/
+
+# Secrets — NEVER bake into the image; pass as runtime env vars instead.
+.env
+backend/.env
+.mcp.json
+
+# Local databases + eval/data artifacts + caches.
+*.db
+*.db-wal
+*.db-shm
+*.db-journal
+backend/.eval_state/
+backend/.data/
+*.log
+**/__pycache__/
+*.pyc
