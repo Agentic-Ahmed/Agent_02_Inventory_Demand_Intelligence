@@ -8,7 +8,7 @@ Deployed to Google Cloud Run in prod (CLAUDE.md S2).
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .routes import chat, approvals, triggers, tenant, audit, usage
+from .routes import chat, approvals, triggers, tenant, audit, usage, team
 
 app = FastAPI(
     title="Inventory & Demand Intelligence API",
@@ -37,3 +37,4 @@ app.include_router(triggers.router)
 app.include_router(tenant.router)
 app.include_router(audit.router)
 app.include_router(usage.router)
+app.include_router(team.router)

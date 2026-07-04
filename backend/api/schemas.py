@@ -67,3 +67,22 @@ class UsageOut(BaseModel):
     escalations: int = 0
     approvals_resolved: int = 0
     tokens_by_agent: dict[str, int] = Field(default_factory=dict)
+
+
+class InviteCreate(BaseModel):
+    email: str = Field(description="Teammate's email address")
+    roles: list[str] = Field(
+        default_factory=list,
+        description="App roles to assign — a teammate may hold several (union of authority)",
+    )
+
+
+class InviteOut(BaseModel):
+    id: str
+    tenant_id: str
+    email: str
+    roles: list[str] = Field(default_factory=list)
+    invited_by: str = ""
+    status: str
+    created_at: str
+    revoked_at: Optional[str] = None

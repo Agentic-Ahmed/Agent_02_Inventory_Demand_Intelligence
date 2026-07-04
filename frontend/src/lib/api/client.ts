@@ -13,6 +13,7 @@ import type {
   ApprovalStatus,
   AuditEvent,
   ChatStreamEvent,
+  Invite,
   Session,
   SkuForecast,
   TenantInfo,
@@ -174,6 +175,57 @@ export async function updateTenant(
     thresholds: { ...prev.thresholds, ...patch.thresholds },
   };
   return getTenant(session);
+}
+
+// ---- team invites (Settings -> Team & roles -> Invite teammate) ----
+
+// Fixtures-mode pending invites (kept in-session) so the flow works with no backend.
+const fixtureInvites: Record<string, Invite[]> = {};
+
+export async function getInvites(
+  session: Session,
+  status: "pending" | "all" = "pending",
+): Promise<Invite[]> {
+  if (IS_LIVE) return apiFetch<Invite[]>(session, `/api/team/invites?status=${status}`);
+  await fakeDelay();
+  const all = fixtureInvites[session.tenantId] ?? [];
+  return status === "all" ? all : all.filter((i) => i.status === "pending");
+}
+
+export async function createInvite(
+  session: Session,
+  body: { email: string; roles: string[] },
+): Promise<Invite> {
+  if (IS_LIVE) {
+    return apiFetch<Invite>(session, "/api/team/invites", {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  }
+  await fakeDelay();
+  const item: Invite = {
+    id: Math.random().toString(36).slice(2, 14),
+    tenant_id: session.tenantId,
+    email: body.email,
+    roles: body.roles,
+    invited_by: session.role,
+    status: "pending",
+    created_at: new Date().toISOString(),
+    revoked_at: null,
+  };
+  (fixtureInvites[session.tenantId] ??= []).unshift(item);
+  return item;
+}
+
+export async function revokeInvite(session: Session, id: string): Promise<Invite | null> {
+  if (IS_LIVE) return apiFetch<Invite>(session, `/api/team/invites/${id}`, { method: "DELETE" });
+  await fakeDelay();
+  const item = (fixtureInvites[session.tenantId] ?? []).find((i) => i.id === id);
+  if (item) {
+    item.status = "revoked";
+    item.revoked_at = new Date().toISOString();
+  }
+  return item ?? null;
 }
 
 export async function getDashboard(session: Session): Promise<DashboardKpis> {

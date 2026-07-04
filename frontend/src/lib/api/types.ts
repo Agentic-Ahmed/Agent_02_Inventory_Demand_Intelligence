@@ -79,6 +79,20 @@ export interface TenantInfo {
   you: { role: string; label: string; can_approve: string[] };
 }
 
+/** GET/POST/DELETE /api/team/invites -> InviteOut. A teammate may hold several
+ *  roles (union of approval authority); the set is stored server-side because a
+ *  Clerk membership carries only one org role. */
+export interface Invite {
+  id: string;
+  tenant_id: string;
+  email: string;
+  roles: string[];
+  invited_by: string;
+  status: "pending" | "revoked" | "accepted";
+  created_at: string;
+  revoked_at: string | null;
+}
+
 /** One day on a forecast path: expected demand with a confidence band. */
 export interface ForecastPoint {
   day: number; // 1..horizon (days ahead)

@@ -50,3 +50,22 @@ def can_approve(user_role: str, required_role: Optional[str]) -> bool:
     if required_role is None:
         return False
     return user_role == required_role
+
+
+# Roles a teammate can be assigned when invited (Admin is provisioned separately).
+INVITABLE_ROLES = [PLANNER, BUYER, ALLOCATOR, PRICER, ANALYST, MANAGER]
+
+
+def valid_roles(roles) -> list:
+    """Keep only known invitable roles, de-duplicated, order preserved."""
+    out: list = []
+    for r in roles or []:
+        if r in INVITABLE_ROLES and r not in out:
+            out.append(r)
+    return out
+
+
+def can_approve_any(user_roles, required_role: Optional[str]) -> bool:
+    """A teammate may hold several roles (union of approval authority): they can
+    approve an item if ANY of their roles can. Mirrors can_approve for a role set."""
+    return any(can_approve(r, required_role) for r in (user_roles or []))
