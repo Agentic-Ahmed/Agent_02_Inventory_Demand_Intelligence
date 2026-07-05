@@ -44,13 +44,27 @@ GROUP = os.environ.get("REDPANDA_GROUP", "quorum-orchestrator")
 
 
 def _base_conf() -> dict[str, Any]:
-    return {
+    conf: dict[str, Any] = {
         "bootstrap.servers": os.environ.get("REDPANDA_BROKERS", ""),
         "security.protocol": os.environ.get("REDPANDA_SECURITY_PROTOCOL", "SASL_SSL"),
         "sasl.mechanisms": os.environ.get("REDPANDA_SASL_MECHANISM", "SCRAM-SHA-256"),
         "sasl.username": os.environ.get("REDPANDA_USERNAME", ""),
         "sasl.password": os.environ.get("REDPANDA_PASSWORD", ""),
     }
+    # Pin the CA bundle explicitly so the TLS handshake succeeds regardless of where the
+    # host keeps its system certs (belt-and-suspenders for slim container images). An
+    # explicit override wins; else certifi if present; else librdkafka's system default.
+    ca = os.environ.get("REDPANDA_SSL_CA_LOCATION")
+    if not ca:
+        try:
+            import certifi
+
+            ca = certifi.where()
+        except Exception:
+            ca = None
+    if ca:
+        conf["ssl.ca.location"] = ca
+    return conf
 
 
 def _default_producer():  # pragma: no cover - needs a real broker
@@ -107,20 +121,30 @@ class EventStream:
 
         await asyncio.to_thread(_do)
 
-    async def drain(self, max_messages: int = 5, timeout: float = 1.0) -> list[dict]:
+    async def drain(self, max_messages: int = 5, poll_timeout: float = 1.0,
+                    overall_timeout: float = 8.0) -> list[dict]:
         """Consume up to `max_messages`, returning their decoded payloads.
 
-        Offsets are committed only after the batch is read, so a crash re-delivers rather
-        than drops. Bad/undecodable messages are skipped, not fatal.
+        Deadline-based, because each drain creates a fresh consumer that must first join
+        the group and get a partition assignment -- during which poll() returns None. So
+        we keep polling until the overall deadline for the FIRST message; once we've read
+        some, an empty poll means the batch is drained and we stop. Offsets commit only
+        after the batch is read (a crash re-delivers rather than drops); bad messages are
+        skipped, not fatal.
         """
+        import time
+
         def _do() -> list[dict]:
             c = self._make_consumer()
             out: list[dict] = []
+            deadline = time.monotonic() + overall_timeout
             try:
-                for _ in range(max(1, max_messages)):
-                    msg = c.poll(timeout)
+                while len(out) < max(1, max_messages) and time.monotonic() < deadline:
+                    msg = c.poll(poll_timeout)
                     if msg is None:
-                        break
+                        if out:
+                            break  # got the batch, then a gap -> done
+                        continue   # still joining / nothing yet -> keep trying until deadline
                     if msg.error():
                         continue
                     try:
