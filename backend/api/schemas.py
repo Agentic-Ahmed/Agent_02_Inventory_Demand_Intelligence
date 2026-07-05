@@ -109,6 +109,56 @@ class MemorySearchOut(BaseModel):
     hits: list[MemoryHit] = Field(default_factory=list)
 
 
+class DashboardKpis(BaseModel):
+    """GET /api/dashboard -- headline KPIs for the console dashboard."""
+    forecast_accuracy: float = 0.0
+    forecast_accuracy_delta: float = 0.0
+    forecast_accuracy_trend: list[float] = Field(default_factory=list)
+    stockout_rate: float = 0.0
+    stockout_rate_delta: float = 0.0
+    stockout_rate_trend: list[float] = Field(default_factory=list)
+    capital_freed: float = 0.0
+    capital_freed_delta: float = 0.0
+    capital_freed_trend: list[float] = Field(default_factory=list)
+    reorder_cycle_hours: float = 0.0
+    reorder_cycle_trend: list[float] = Field(default_factory=list)
+
+
+class InventoryRow(BaseModel):
+    """GET /api/inventory -- one SKU's stock health."""
+    sku: str
+    name: str
+    on_hand: int
+    days_cover: int
+    status: Literal["healthy", "low", "critical", "overstock"]
+
+
+class ForecastPoint(BaseModel):
+    day: int
+    mean: float
+    lower: float
+    upper: float
+
+
+class ForecastHorizon(BaseModel):
+    days: int
+    points: list[ForecastPoint] = Field(default_factory=list)
+    predicted_total: int
+    daily_mean: float
+    confidence: float
+    projected_stockout_day: Optional[int] = None
+
+
+class SkuForecast(BaseModel):
+    """GET /api/forecasts -- per-SKU demand forecast across 7/30/90-day horizons."""
+    sku: str
+    name: str
+    status: str
+    on_hand: int
+    history: list[int] = Field(default_factory=list)
+    horizons: dict[str, ForecastHorizon] = Field(default_factory=dict)  # keys "7"/"30"/"90"
+
+
 class TenantThresholdsPatch(BaseModel):
     """Partial guardrail-threshold edit — every field optional (only send what changed)."""
     po_auto_approve_limit: Optional[float] = None

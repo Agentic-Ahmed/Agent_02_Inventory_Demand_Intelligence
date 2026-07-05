@@ -230,18 +230,20 @@ export async function revokeInvite(session: Session, id: string): Promise<Invite
 }
 
 export async function getDashboard(session: Session): Promise<DashboardKpis> {
-  // Backend has no KPI endpoint yet; always fixture-backed (see fixtures.ts note).
+  if (IS_LIVE) return apiFetch<DashboardKpis>(session, "/api/dashboard");
   await fakeDelay();
   return tenantFixture(session.tenantId).dashboard;
 }
 
 export async function getInventory(session: Session): Promise<InventoryRow[]> {
+  if (IS_LIVE) return apiFetch<InventoryRow[]>(session, "/api/inventory");
   await fakeDelay();
   return tenantFixture(session.tenantId).inventory;
 }
 
 export async function getForecasts(session: Session): Promise<SkuForecast[]> {
-  // Backend has no forecast endpoint yet; derive from inventory (see forecast.ts).
+  if (IS_LIVE) return apiFetch<SkuForecast[]>(session, "/api/forecasts");
+  // Fixtures: derive from inventory so preview stays consistent (see forecast.ts).
   await fakeDelay();
   return tenantFixture(session.tenantId).inventory.map(buildForecast);
 }
