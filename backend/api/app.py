@@ -11,6 +11,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .routes import chat, approvals, triggers, tenant, audit, usage, team
+from ..observability.tracing import init_observability
 
 # Allowed browser origins: local dev + the Vercel deployment by default; override with
 # CORS_ORIGINS (comma-separated) in prod — no code change needed.
@@ -31,6 +32,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Route agent + request traces to Logfire when LOGFIRE_TOKEN is set (else no-op).
+init_observability(app)
 
 
 @app.get("/health", tags=["meta"])

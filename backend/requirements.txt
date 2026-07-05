@@ -8,3 +8,6 @@ uvicorn[standard]
 pyjwt[crypto]
 # Postgres driver (prod data layer; SQLite is used when DATABASE_URL is unset)
 psycopg[binary]
+# Observability: send Agents-SDK + FastAPI traces to Logfire (only active when
+# LOGFIRE_TOKEN is set; see backend/observability/tracing.py)
+logfire[fastapi]
