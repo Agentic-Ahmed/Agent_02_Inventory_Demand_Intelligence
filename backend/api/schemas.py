@@ -107,3 +107,30 @@ class MemoryHit(BaseModel):
 class MemorySearchOut(BaseModel):
     query: str
     hits: list[MemoryHit] = Field(default_factory=list)
+
+
+class EventIn(BaseModel):
+    type: str = Field(default="flash_sale", description="e.g. flash_sale / supplier_delay / stockout_risk")
+    sku: str = Field(default="SKU-1000")
+    reason: str = Field(default="", description="Human-readable trigger reason")
+    magnitude: Optional[float] = Field(default=None, description="Optional size of the event, e.g. demand multiplier")
+
+
+class EventPublishOut(BaseModel):
+    published: bool
+    topic: str
+    key: str
+
+
+class DrainResult(BaseModel):
+    tenant_id: str
+    sku: str
+    reason: str
+    answer: str = ""
+    escalations: list[str] = Field(default_factory=list)
+    error: Optional[str] = None
+
+
+class DrainOut(BaseModel):
+    processed: int
+    results: list[DrainResult] = Field(default_factory=list)

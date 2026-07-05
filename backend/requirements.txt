@@ -17,3 +17,6 @@ qdrant-client
 # Cache + per-tenant rate limiting via Upstash Redis REST (only active when
 # UPSTASH_REDIS_REST_URL is set; see backend/core/cache.py)
 upstash-redis
+# Event streaming (Kafka/Redpanda) for event-driven triggers (only active when
+# REDPANDA_BROKERS is set; see backend/core/events.py)
+confluent-kafka
