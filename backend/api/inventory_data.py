@@ -77,6 +77,13 @@ def dashboard_kpis(tenant_id: str) -> dict[str, Any]:
 
 
 def inventory_rows(tenant_id: str) -> list[dict[str, Any]]:
+    # A tenant's own imported inventory wins over the seeded demo catalog (bring-your-own-
+    # data); falls back to the seed for demo tenants, else an empty workspace.
+    from .inventory_store import IMPORTED  # lazy: avoids import cycle at module load
+
+    imported = IMPORTED.get(tenant_id)
+    if imported is not None:
+        return [dict(r) for r in imported]
     entry = SEED.get(tenant_id)
     return [dict(r) for r in entry["inventory"]] if entry else []
 

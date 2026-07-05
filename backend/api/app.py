@@ -10,7 +10,9 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .routes import chat, approvals, triggers, tenant, audit, usage, team, memory, events, insights
+from .routes import (
+    chat, approvals, triggers, tenant, audit, usage, team, memory, events, insights, integrations,
+)
 from ..observability.tracing import init_observability
 
 # Allowed browser origins: local dev + the Vercel deployment by default; override with
@@ -52,3 +54,4 @@ app.include_router(team.router)
 app.include_router(memory.router)
 app.include_router(events.router)
 app.include_router(insights.router)
+app.include_router(integrations.router)

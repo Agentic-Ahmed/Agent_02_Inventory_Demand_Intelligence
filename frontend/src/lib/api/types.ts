@@ -93,6 +93,27 @@ export interface Invite {
   revoked_at: string | null;
 }
 
+/** GET/POST /api/integrations -> IntegrationOut. A tenant's connection to one of their
+ *  own systems (WMS, ERP, commerce, ...). The credential is never returned — only a
+ *  masked hint (e.g. "****1234") so the UI can show that one is set. */
+export interface Integration {
+  id: string;
+  tenant_id: string;
+  kind: string;
+  label: string;
+  config: Record<string, unknown>;
+  secret_hint: string | null;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/** POST /api/inventory/import -> ImportResult */
+export interface ImportResult {
+  imported: number;
+  source: string;
+}
+
 /** One day on a forecast path: expected demand with a confidence band. */
 export interface ForecastPoint {
   day: number; // 1..horizon (days ahead)

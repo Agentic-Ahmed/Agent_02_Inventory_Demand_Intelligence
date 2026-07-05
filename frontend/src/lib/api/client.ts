@@ -13,6 +13,8 @@ import type {
   ApprovalStatus,
   AuditEvent,
   ChatStreamEvent,
+  ImportResult,
+  Integration,
   Invite,
   Session,
   SkuForecast,
@@ -238,14 +240,113 @@ export async function getDashboard(session: Session): Promise<DashboardKpis> {
 export async function getInventory(session: Session): Promise<InventoryRow[]> {
   if (IS_LIVE) return apiFetch<InventoryRow[]>(session, "/api/inventory");
   await fakeDelay();
-  return tenantFixture(session.tenantId).inventory;
+  // Preview: a tenant's imported rows override the seeded catalog, mirroring the backend.
+  return importedInventory[session.tenantId] ?? tenantFixture(session.tenantId).inventory;
 }
 
 export async function getForecasts(session: Session): Promise<SkuForecast[]> {
   if (IS_LIVE) return apiFetch<SkuForecast[]>(session, "/api/forecasts");
   // Fixtures: derive from inventory so preview stays consistent (see forecast.ts).
   await fakeDelay();
-  return tenantFixture(session.tenantId).inventory.map(buildForecast);
+  const rows = importedInventory[session.tenantId] ?? tenantFixture(session.tenantId).inventory;
+  return rows.map(buildForecast);
+}
+
+// ---- integrations + data import (Settings -> Integrations) ----
+
+// Preview-mode stores (in-session), so connect/import work without a backend.
+const integrationsStore: Record<string, Integration[]> = {};
+const importedInventory: Record<string, InventoryRow[]> = {};
+
+const STATUS_FOR = (daysCover: number): InventoryRow["status"] =>
+  daysCover <= 1 ? "critical" : daysCover <= 3 ? "low" : daysCover >= 60 ? "overstock" : "healthy";
+
+export async function getIntegrations(session: Session): Promise<Integration[]> {
+  if (IS_LIVE) return apiFetch<Integration[]>(session, "/api/integrations");
+  await fakeDelay();
+  return integrationsStore[session.tenantId] ?? [];
+}
+
+export async function connectIntegration(
+  session: Session,
+  body: { kind: string; label?: string; config?: Record<string, unknown>; secret?: string },
+): Promise<Integration> {
+  if (IS_LIVE) {
+    return apiFetch<Integration>(session, "/api/integrations", {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  }
+  await fakeDelay();
+  const now = new Date().toISOString();
+  const hint = body.secret ? `****${body.secret.slice(-4)}` : null;
+  const item: Integration = {
+    id: Math.random().toString(36).slice(2, 14),
+    tenant_id: session.tenantId,
+    kind: body.kind,
+    label: body.label || body.kind,
+    config: body.config ?? {},
+    secret_hint: hint,
+    status: "connected",
+    created_at: now,
+    updated_at: now,
+  };
+  const list = (integrationsStore[session.tenantId] ??= []);
+  const idx = list.findIndex((i) => i.kind === body.kind);
+  if (idx >= 0) list[idx] = { ...item, id: list[idx].id, created_at: list[idx].created_at };
+  else list.push(item);
+  return item;
+}
+
+export async function disconnectIntegration(session: Session, kind: string): Promise<void> {
+  if (IS_LIVE) {
+    await apiFetch<{ disconnected: boolean }>(session, `/api/integrations/${kind}`, { method: "DELETE" });
+    return;
+  }
+  await fakeDelay();
+  const list = integrationsStore[session.tenantId] ?? [];
+  integrationsStore[session.tenantId] = list.filter((i) => i.kind !== kind);
+}
+
+export async function importInventory(
+  session: Session,
+  rows: Array<{ sku: string; name?: string; on_hand?: number; days_cover?: number; status?: string }>,
+): Promise<ImportResult> {
+  if (IS_LIVE) {
+    return apiFetch<ImportResult>(session, "/api/inventory/import", {
+      method: "POST",
+      body: JSON.stringify({ rows }),
+    });
+  }
+  await fakeDelay();
+  const cleaned: InventoryRow[] = rows
+    .filter((r) => (r.sku ?? "").trim())
+    .map((r) => {
+      const daysCover = Math.max(0, Math.floor(Number(r.days_cover) || 0));
+      const status = (["healthy", "low", "critical", "overstock"] as const).includes(
+        r.status as InventoryRow["status"],
+      )
+        ? (r.status as InventoryRow["status"])
+        : STATUS_FOR(daysCover);
+      return {
+        sku: String(r.sku).trim(),
+        name: (r.name ?? r.sku).toString().trim(),
+        on_hand: Math.max(0, Math.floor(Number(r.on_hand) || 0)),
+        days_cover: daysCover,
+        status,
+      };
+    });
+  importedInventory[session.tenantId] = cleaned;
+  return { imported: cleaned.length, source: "import" };
+}
+
+export async function revertInventory(session: Session): Promise<void> {
+  if (IS_LIVE) {
+    await apiFetch<{ reverted: boolean }>(session, "/api/inventory/import", { method: "DELETE" });
+    return;
+  }
+  await fakeDelay();
+  delete importedInventory[session.tenantId];
 }
 
 // ---- chat (SSE streaming) ----

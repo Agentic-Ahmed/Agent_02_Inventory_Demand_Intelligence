@@ -159,6 +159,44 @@ class SkuForecast(BaseModel):
     horizons: dict[str, ForecastHorizon] = Field(default_factory=dict)  # keys "7"/"30"/"90"
 
 
+class IntegrationConnect(BaseModel):
+    """POST /api/integrations body: connect a tenant's own system."""
+    kind: str = Field(description="wms | erp | commerce | warehouse_data | slack | events")
+    label: str = ""
+    config: dict[str, Any] = Field(default_factory=dict, description="Non-secret settings, e.g. endpoint URL")
+    secret: Optional[str] = Field(default=None, description="Credential — stored masked, never returned")
+
+
+class IntegrationOut(BaseModel):
+    id: str
+    tenant_id: str
+    kind: str
+    label: str = ""
+    config: dict[str, Any] = Field(default_factory=dict)
+    secret_hint: Optional[str] = None
+    status: str
+    created_at: str
+    updated_at: str
+
+
+class ImportRow(BaseModel):
+    sku: str
+    name: str = ""
+    on_hand: int = 0
+    days_cover: int = 0
+    status: Optional[str] = None
+
+
+class InventoryImport(BaseModel):
+    """POST /api/inventory/import body: a tenant's inventory rows (from a CSV upload)."""
+    rows: list[ImportRow] = Field(default_factory=list)
+
+
+class ImportResult(BaseModel):
+    imported: int
+    source: str = "import"
+
+
 class TenantThresholdsPatch(BaseModel):
     """Partial guardrail-threshold edit — every field optional (only send what changed)."""
     po_auto_approve_limit: Optional[float] = None
