@@ -14,14 +14,14 @@ from fastapi.responses import StreamingResponse
 
 from ...core.context import TenantContext
 from ..schemas import ChatRequest, ChatResponse
-from ..deps import get_tenant
+from ..deps import chat_rate_limited
 from ..orchestration import run_orchestrator_collect, run_orchestrator_stream
 
 router = APIRouter(prefix="/api", tags=["chat"])
 
 
 @router.post("/chat", response_model=ChatResponse)
-async def chat(req: ChatRequest, tenant: TenantContext = Depends(get_tenant)) -> ChatResponse:
+async def chat(req: ChatRequest, tenant: TenantContext = Depends(chat_rate_limited)) -> ChatResponse:
     try:
         answer, tools, escalations = await run_orchestrator_collect(req.message, tenant, req.sku)
     except Exception as exc:  # noqa: BLE001 - surface model/quota failures cleanly
@@ -33,7 +33,7 @@ async def chat(req: ChatRequest, tenant: TenantContext = Depends(get_tenant)) ->
 
 
 @router.post("/chat/stream")
-async def chat_stream(req: ChatRequest, tenant: TenantContext = Depends(get_tenant)) -> StreamingResponse:
+async def chat_stream(req: ChatRequest, tenant: TenantContext = Depends(chat_rate_limited)) -> StreamingResponse:
     """SSE stream of one orchestrator turn. Events: tool_call, tool_output, text, done
     (and error if the run fails mid-stream, since headers are already sent)."""
 

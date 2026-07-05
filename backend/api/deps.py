@@ -8,14 +8,20 @@ Every request carries a tenant + a user role. Two sources, in priority order:
 
 The tenant's own guardrail thresholds come from the registry (core/tenants.py).
 """
+import os
 from typing import Optional
 
-from fastapi import Cookie, Header, HTTPException
+from fastapi import Cookie, Depends, Header, HTTPException
 
 from ..core import auth
+from ..core.cache import rate_limit
 from ..core.context import TenantContext, RunContext
 from ..core.tenants import build_tenant_context
 from ..testing.dummy_data import make_orchestrator_bundle
+
+# Per-tenant chat rate limit (fixed window). Fail-open when Redis is off (see core.cache),
+# so this is invisible until Upstash is configured. Tune without a redeploy via env.
+_CHAT_LIMIT = int(os.environ.get("RATE_LIMIT_CHAT_PER_MIN", "60"))
 
 
 def get_tenant(
@@ -43,6 +49,18 @@ def get_tenant(
     ctx = build_tenant_context(x_tenant_id or "acme", x_user_role or "planner")
     ctx.user_id = x_user_id or "user"
     return ctx
+
+
+async def chat_rate_limited(tenant: TenantContext = Depends(get_tenant)) -> TenantContext:
+    """get_tenant + a per-tenant rate limit for the expensive chat endpoints, so a
+    runaway client can't burn our Gemini quota. Fail-open: unlimited when Redis is off."""
+    allowed, _remaining = await rate_limit(f"chat:{tenant.tenant_id}", _CHAT_LIMIT, 60)
+    if not allowed:
+        raise HTTPException(
+            status_code=429,
+            detail="Rate limit reached — too many requests. Please wait a moment and retry.",
+        )
+    return tenant
 
 
 def run_context_for(tenant: TenantContext, sku: str) -> RunContext:
