@@ -7,6 +7,7 @@ the same $8k order auto-approves for the big retailer but escalates for the smal
 """
 from .context import TenantContext
 from .roles import PLANNER, BUYER, ALLOCATOR, PRICER, ANALYST, MANAGER, ADMIN
+from .tenant_settings import overrides
 
 # tenant_id -> {name, thresholds (subset of TenantContext fields), team {role: person}}
 TENANTS: dict[str, dict] = {
@@ -47,12 +48,27 @@ DEFAULT_TENANT = "acme"
 
 
 def tenant_config(tenant_id: str) -> dict:
-    """Raw registry entry for a tenant ({} if unknown)."""
-    return TENANTS.get(tenant_id, {})
+    """Registry entry for a tenant, with any saved Settings overrides merged in
+    (name + thresholds). {} if the tenant is unknown and has no saved settings."""
+    base = TENANTS.get(tenant_id, {})
+    ov = overrides(tenant_id)
+    if not base and not ov:
+        return {}
+    cfg = dict(base)
+    merged_thresholds = {**base.get("thresholds", {}), **ov.get("thresholds", {})}
+    if merged_thresholds:
+        cfg["thresholds"] = merged_thresholds
+    if ov.get("name"):
+        cfg["name"] = ov["name"]
+    return cfg
 
 
 def build_tenant_context(tenant_id: str, user_role: str = PLANNER) -> TenantContext:
-    """Per-request TenantContext: the tenant's own thresholds + the caller's role.
-    Unknown tenants fall back to TenantContext defaults (so tests/ad-hoc ids work)."""
-    thresholds = TENANTS.get(tenant_id, {}).get("thresholds", {})
+    """Per-request TenantContext: the tenant's thresholds (defaults + saved overrides)
+    plus the caller's role. Unknown tenants fall back to TenantContext defaults (so
+    tests/ad-hoc ids work). Saved Settings thus flow into the agents' guardrails."""
+    thresholds = {
+        **TENANTS.get(tenant_id, {}).get("thresholds", {}),
+        **overrides(tenant_id).get("thresholds", {}),
+    }
     return TenantContext(tenant_id=tenant_id, user_role=user_role, **thresholds)

@@ -109,6 +109,22 @@ class MemorySearchOut(BaseModel):
     hits: list[MemoryHit] = Field(default_factory=list)
 
 
+class TenantThresholdsPatch(BaseModel):
+    """Partial guardrail-threshold edit — every field optional (only send what changed)."""
+    po_auto_approve_limit: Optional[float] = None
+    max_markdown: Optional[float] = None
+    min_confidence: Optional[float] = None
+    max_supplier_share: Optional[float] = None
+    hard_po_ceiling: Optional[float] = None
+    hard_markdown_ceiling: Optional[float] = None
+
+
+class TenantPatch(BaseModel):
+    """PATCH /api/tenant body: rename the workspace and/or adjust guardrail thresholds."""
+    name: Optional[str] = None
+    thresholds: Optional[TenantThresholdsPatch] = None
+
+
 class EventIn(BaseModel):
     type: str = Field(default="flash_sale", description="e.g. flash_sale / supplier_delay / stockout_risk")
     sku: str = Field(default="SKU-1000")

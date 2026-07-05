@@ -1,21 +1,30 @@
-"""GET /api/tenant -- the calling tenant's config for the Settings screen (CLAUDE.md S8).
+"""GET/PATCH /api/tenant -- the calling tenant's config for the Settings screen (CLAUDE.md S8).
 
-Returns this business's guardrail thresholds, its team (role -> person), and what the
-current caller (by role) is allowed to approve. Per-tenant thresholds + per-role
-authority are the heart of multi-tenancy (CLAUDE.md S9).
+GET returns this business's guardrail thresholds, its team (role -> person), and what the
+current caller (by role) is allowed to approve. PATCH persists Settings edits (name +
+guardrail thresholds) so they survive restarts AND flow into the agents' guardrails
+(see core.tenants.build_tenant_context). Per-tenant thresholds + per-role authority are
+the heart of multi-tenancy (CLAUDE.md S9); only an Admin or Inventory Manager may edit them.
 """
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 
 from ...core.context import TenantContext
-from ...core.roles import ROLE_LABEL, SPECIALIST_ROLE, can_approve
-from ...core.tenants import tenant_config
+from ...core.roles import ROLE_LABEL, SPECIALIST_ROLE, ADMIN, MANAGER, can_approve
+from ...core.tenants import tenant_config, build_tenant_context
+from ...core.tenant_settings import TENANT_SETTINGS
+from ..schemas import TenantPatch
 from ..deps import get_tenant
+from ..audit_store import AUDIT
 
 router = APIRouter(prefix="/api", tags=["tenant"])
 
+# Bounds so a Settings edit can't push a threshold to a nonsensical value.
+_FRACTION_FIELDS = {"max_markdown", "min_confidence", "max_supplier_share", "hard_markdown_ceiling"}
+_MONEY_FIELDS = {"po_auto_approve_limit", "hard_po_ceiling"}
 
-@router.get("/tenant")
-async def get_tenant_info(tenant: TenantContext = Depends(get_tenant)) -> dict:
+
+def _tenant_payload(tenant: TenantContext) -> dict:
+    """The Settings payload for a tenant + caller (shared by GET and PATCH)."""
     cfg = tenant_config(tenant.tenant_id)
     role = tenant.user_role
     approvable = [spec for spec, owner in SPECIALIST_ROLE.items() if can_approve(role, owner)]
@@ -38,3 +47,33 @@ async def get_tenant_info(tenant: TenantContext = Depends(get_tenant)) -> dict:
             "can_approve": approvable,
         },
     }
+
+
+@router.get("/tenant")
+async def get_tenant_info(tenant: TenantContext = Depends(get_tenant)) -> dict:
+    return _tenant_payload(tenant)
+
+
+@router.patch("/tenant")
+async def update_tenant_info(patch: TenantPatch, tenant: TenantContext = Depends(get_tenant)) -> dict:
+    # Only the Admin (or the Inventory Manager lead) may change a tenant's limits.
+    if tenant.user_role not in (ADMIN, MANAGER):
+        raise HTTPException(status_code=403, detail="only an Admin or Inventory Manager may change settings")
+
+    thr = patch.thresholds.model_dump(exclude_none=True) if patch.thresholds else {}
+    for k, v in thr.items():
+        if k in _FRACTION_FIELDS and not (0.0 <= v <= 1.0):
+            raise HTTPException(status_code=422, detail=f"{k} must be between 0 and 1")
+        if k in _MONEY_FIELDS and v < 0:
+            raise HTTPException(status_code=422, detail=f"{k} must be >= 0")
+
+    name = patch.name.strip() if patch.name and patch.name.strip() else None
+    if not thr and name is None:
+        raise HTTPException(status_code=422, detail="nothing to update")
+
+    TENANT_SETTINGS.save(tenant.tenant_id, name, thr)
+    AUDIT.log(tenant.tenant_id, "settings_updated", actor=tenant.user_role,
+              summary="tenant settings changed",
+              detail={"name": name, "thresholds": thr})
+    # Rebuild the context so the response reflects the just-saved thresholds.
+    return _tenant_payload(build_tenant_context(tenant.tenant_id, tenant.user_role))
