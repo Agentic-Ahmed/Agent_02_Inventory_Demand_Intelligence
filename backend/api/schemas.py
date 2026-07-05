@@ -86,3 +86,24 @@ class InviteOut(BaseModel):
     status: str
     created_at: str
     revoked_at: Optional[str] = None
+
+
+class MemoryAdd(BaseModel):
+    text: str = Field(description="Knowledge to remember (a fact, policy, or note)")
+    kind: str = Field(default="note", description="Category tag, e.g. note / policy / decision")
+
+
+class MemoryOut(BaseModel):
+    id: str
+    kind: str
+
+
+class MemoryHit(BaseModel):
+    text: str
+    kind: Optional[str] = None
+    score: float
+
+
+class MemorySearchOut(BaseModel):
+    query: str
+    hits: list[MemoryHit] = Field(default_factory=list)

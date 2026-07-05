@@ -11,3 +11,6 @@ psycopg[binary]
 # Observability: send Agents-SDK + FastAPI traces to Logfire (only active when
 # LOGFIRE_TOKEN is set; see backend/observability/tracing.py)
 logfire[fastapi]
+# Vector DB for semantic memory / RAG (only active when QDRANT_URL is set;
+# see backend/core/memory.py)
+qdrant-client

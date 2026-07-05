@@ -21,6 +21,7 @@ from ..agents.orchestrator import build_orchestrator
 from ..core.context import TenantContext
 from ..core.roles import required_role_for
 from ..core.sessions import make_session
+from ..core.memory import get_memory
 from ..observability.audit_hooks import AuditHooks
 from .deps import run_context_for
 from .approval_store import STORE
@@ -29,6 +30,37 @@ from .audit_store import AUDIT
 # Sentinel so callers can pass session=None to explicitly disable memory (used by
 # stateless triggers), while the default builds a per-(tenant, user) session.
 _DEFAULT_SESSION = object()
+
+
+async def _recall_block(tenant_id: str, message: str) -> str:
+    """Retrieve relevant long-term memory for this tenant and format it as a context
+    preamble (CLAUDE.md S2 RAG). Best-effort: never raises, so memory being down can't
+    break chat. Returns "" when memory is off or nothing relevant is found."""
+    mem = get_memory()
+    if mem is None:
+        return ""
+    try:
+        hits = await mem.search(tenant_id, message, limit=4, min_score=0.35)
+    except Exception:  # noqa: BLE001 - memory is best-effort
+        return ""
+    lines = "\n".join(f"- {h['text']}" for h in hits if h.get("text"))
+    if not lines:
+        return ""
+    return (
+        "Relevant context from this tenant's memory (use if helpful, ignore if not):\n"
+        f"{lines}\n\n"
+    )
+
+
+async def _remember(tenant_id: str, message: str, answer: str) -> None:
+    """Store this turn as durable, tenant-scoped memory. Best-effort."""
+    mem = get_memory()
+    if mem is None or not answer:
+        return
+    try:
+        await mem.add(tenant_id, f"Q: {message}\nA: {answer}", kind="chat")
+    except Exception:  # noqa: BLE001 - memory is best-effort
+        pass
 
 _ACTION_TYPE = {
     "forecasting": "forecast_review",
@@ -79,7 +111,8 @@ async def run_orchestrator_collect(
     ctx = run_context_for(tenant, sku)
     orch = orchestrator or build_orchestrator()
     sess = make_session(tenant.tenant_id, tenant.user_id) if session is _DEFAULT_SESSION else session
-    result = await Runner.run(orch, message, context=ctx, max_turns=20,
+    recall = await _recall_block(tenant.tenant_id, message)
+    result = await Runner.run(orch, recall + message, context=ctx, max_turns=20,
                               hooks=AuditHooks(tenant.tenant_id, sku), session=sess)
 
     tools_called: list[str] = []
@@ -94,7 +127,9 @@ async def run_orchestrator_collect(
             eid = _maybe_escalate(_tool_output_dict(it), tenant, sku)
             if eid:
                 escalation_ids.append(eid)
-    return (result.final_output or ""), tools_called, escalation_ids
+    final = result.final_output or ""
+    await _remember(tenant.tenant_id, message, final)
+    return final, tools_called, escalation_ids
 
 
 async def run_orchestrator_stream(
@@ -111,10 +146,11 @@ async def run_orchestrator_stream(
     ctx = run_context_for(tenant, sku)
     orch = orchestrator or build_orchestrator()
     sess = make_session(tenant.tenant_id, tenant.user_id) if session is _DEFAULT_SESSION else session
+    recall = await _recall_block(tenant.tenant_id, message)
     tools_called: list[str] = []
     escalation_ids: list[str] = []
 
-    result = Runner.run_streamed(orch, message, context=ctx, max_turns=20,
+    result = Runner.run_streamed(orch, recall + message, context=ctx, max_turns=20,
                                  hooks=AuditHooks(tenant.tenant_id, sku), session=sess)
     async for event in result.stream_events():
         if event.type == "raw_response_event":
@@ -141,8 +177,10 @@ async def run_orchestrator_stream(
                     payload["escalation_id"] = eid
                 yield "tool_output", payload
 
+    final = result.final_output or ""
+    await _remember(tenant.tenant_id, message, final)
     yield "done", {
-        "answer": result.final_output or "",
+        "answer": final,
         "tools_called": tools_called,
         "escalations": escalation_ids,
     }
