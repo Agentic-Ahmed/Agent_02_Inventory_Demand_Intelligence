@@ -109,17 +109,33 @@ class EventStream:
         return self._producer
 
     async def publish(self, event: dict, key: Optional[str] = None) -> None:
-        """Serialize + produce one event to the topic (blocking client run off-thread)."""
-        def _do() -> None:
+        """Serialize + produce one event, CONFIRMING delivery (blocking client off-thread).
+
+        A per-message delivery callback + flush() let us surface a real failure -- e.g. an
+        unknown topic on a cluster without auto-create -- instead of silently "succeeding".
+        The caller turns the raised error into a 502 with the reason.
+        """
+        errors: list[str] = []
+
+        def _on_delivery(err, _msg):  # runs during flush(), same thread
+            if err is not None:
+                errors.append(str(err))
+
+        def _do() -> int:
             p = self._producer_or_create()
             p.produce(
                 self._topic,
                 key=(key or "").encode() if key else None,
                 value=json.dumps(event).encode(),
+                callback=_on_delivery,
             )
-            p.flush(10)
+            return p.flush(15)  # blocks until each message is delivered/failed
 
-        await asyncio.to_thread(_do)
+        remaining = await asyncio.to_thread(_do)
+        if errors:
+            raise RuntimeError(f"event delivery failed: {errors[0]}")
+        if remaining:
+            raise RuntimeError(f"event delivery timed out: {remaining} message(s) unacked")
 
     async def drain(self, max_messages: int = 5, poll_timeout: float = 1.0,
                     overall_timeout: float = 8.0) -> list[dict]:
