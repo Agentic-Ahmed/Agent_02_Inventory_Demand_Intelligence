@@ -13,12 +13,14 @@ import type {
   ApprovalStatus,
   AuditEvent,
   ChatStreamEvent,
+  GeocodeHit,
   ImportResult,
   Integration,
   Invite,
   Session,
   SkuForecast,
   TenantInfo,
+  TenantPatch,
   TenantThresholds,
   Usage,
 } from "./types";
@@ -134,10 +136,16 @@ export async function getAudit(session: Session, limit = 100): Promise<AuditEven
   return tenantFixture(session.tenantId).audit.slice(0, limit);
 }
 
-// In-session edits made on the Settings screen. Backend has no PATCH /api/tenant
-// yet, so fixture-mode saves persist here for the session (survive refetch across
-// empty/sample tenants); wire to the API once the endpoint lands.
-const tenantEdits: Record<string, { name?: string; thresholds?: Partial<TenantThresholds> }> = {};
+// In-session edits made on the Settings screen (fixtures/preview mode only). Live mode
+// persists on the backend via PATCH /api/tenant; here saves survive refetch this session.
+type TenantEdit = {
+  name?: string;
+  thresholds?: Partial<TenantThresholds>;
+  signal_location?: TenantInfo["signal_location"] | null; // null = explicitly reset
+};
+const tenantEdits: Record<string, TenantEdit> = {};
+
+const DEFAULT_SIGNAL_LOCATION = { latitude: 40.7128, longitude: -74.006, label: null, custom: false };
 
 export async function getTenant(session: Session): Promise<TenantInfo> {
   if (IS_LIVE) return apiFetch<TenantInfo>(session, "/api/tenant");
@@ -148,10 +156,15 @@ export async function getTenant(session: Session): Promise<TenantInfo> {
   const canApproveList = Object.entries(SPECIALIST_ROLE)
     .filter(([, owner]) => canApprove(session.role, owner))
     .map(([spec]) => spec);
+  const signalLocation =
+    edit.signal_location === null
+      ? DEFAULT_SIGNAL_LOCATION
+      : edit.signal_location ?? t.signal_location ?? DEFAULT_SIGNAL_LOCATION;
   return {
     ...t,
     name: edit.name ?? t.name,
     thresholds: { ...t.thresholds, ...edit.thresholds },
+    signal_location: signalLocation,
     you: {
       role: session.role,
       label: ROLE_LABEL[session.role] ?? session.role,
@@ -160,12 +173,8 @@ export async function getTenant(session: Session): Promise<TenantInfo> {
   };
 }
 
-export async function updateTenant(
-  session: Session,
-  patch: { name?: string; thresholds?: Partial<TenantThresholds> },
-): Promise<TenantInfo> {
+export async function updateTenant(session: Session, patch: TenantPatch): Promise<TenantInfo> {
   if (IS_LIVE) {
-    // Backend endpoint pending; contract is a partial tenant patch.
     return apiFetch<TenantInfo>(session, "/api/tenant", {
       method: "PATCH",
       body: JSON.stringify(patch),
@@ -173,11 +182,47 @@ export async function updateTenant(
   }
   await fakeDelay();
   const prev = tenantEdits[session.tenantId] ?? {};
-  tenantEdits[session.tenantId] = {
+  const next: TenantEdit = {
     name: patch.name ?? prev.name,
     thresholds: { ...prev.thresholds, ...patch.thresholds },
+    signal_location: prev.signal_location,
   };
+  if (patch.reset_signal_location) {
+    next.signal_location = null;
+  } else if (patch.signal_latitude != null && patch.signal_longitude != null) {
+    next.signal_location = {
+      latitude: patch.signal_latitude,
+      longitude: patch.signal_longitude,
+      label: patch.signal_location_label ?? null,
+      custom: true,
+    };
+  }
+  tenantEdits[session.tenantId] = next;
   return getTenant(session);
+}
+
+/** City/place search for the per-tenant weather location (Settings -> General). */
+export async function geocodeLocation(session: Session, q: string): Promise<GeocodeHit[]> {
+  const query = q.trim();
+  if (!query) return [];
+  if (IS_LIVE) {
+    const out = await apiFetch<{ query: string; results: GeocodeHit[] }>(
+      session,
+      `/api/signals/geocode?q=${encodeURIComponent(query)}`,
+    );
+    return out.results ?? [];
+  }
+  // Fixtures/preview: hit Open-Meteo's free geocoding directly (no key, no backend).
+  try {
+    const res = await fetch(
+      `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=5&language=en&format=json`,
+    );
+    if (!res.ok) return [];
+    const data = (await res.json()) as { results?: GeocodeHit[] };
+    return data.results ?? [];
+  } catch {
+    return [];
+  }
 }
 
 // ---- team invites (Settings -> Team & roles -> Invite teammate) ----

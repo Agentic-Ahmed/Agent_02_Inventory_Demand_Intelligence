@@ -11,16 +11,22 @@ from agents import function_tool, RunContextWrapper
 
 from ..core.context import RunContext
 from ..core.signals import fetch_weather
+from ..integrations import live_read, live_write
 
 
 @function_tool
 async def get_sales_history(ctx: RunContextWrapper[RunContext], sku: str, days: int = 90) -> dict:
     """Pull historical sales for a SKU over the last `days` days."""
+    tid = ctx.context.tenant.tenant_id
+    # Live: a connected data warehouse serves the tenant's real sales history.
+    live = await asyncio.to_thread(live_read, tid, "warehouse_data", "sales-history", {"sku": sku, "days": days})
+    if live is not None:
+        return {"tenant_id": tid, "source": "warehouse_data", "sku": sku, **live}
     ds = ctx.context.dataset
     if ds is None:
         return {"sku": sku, "history": [], "note": "no data available"}
     return {
-        "tenant_id": ctx.context.tenant.tenant_id,
+        "tenant_id": tid,
         "sku": ds["sku"],
         "history": ds["history"][-days:],
         "data_age_hours": ds["data_age_hours"],
@@ -49,8 +55,14 @@ async def get_external_signals(ctx: RunContextWrapper[RunContext], sku: str) -> 
 async def log_forecast(
     ctx: RunContextWrapper[RunContext], sku: str, predicted_units: int, confidence: float
 ) -> str:
-    """Store a forecast for later model evaluation (mock: no-op)."""
+    """Store a forecast for later model evaluation. Writes to a connected data
+    warehouse when one is set, else a no-op mock."""
+    tid = ctx.context.tenant.tenant_id
+    live = await asyncio.to_thread(
+        live_write, tid, "warehouse_data", "forecast-log",
+        {"sku": sku, "predicted_units": predicted_units, "confidence": confidence})
+    where = "warehouse" if live is not None else "mock"
     return (
         f"Logged forecast for {sku}: {predicted_units} units "
-        f"(confidence {confidence:.2f}) tenant={ctx.context.tenant.tenant_id}"
+        f"(confidence {confidence:.2f}) tenant={tid} sink={where}"
     )

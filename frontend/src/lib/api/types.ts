@@ -70,13 +70,43 @@ export interface TenantThresholds {
   hard_markdown_ceiling: number;
 }
 
+/** The weather-signal location a tenant reads demand weather for (Settings -> General).
+ *  `custom` is true when the tenant set it; false means it's inheriting the default. */
+export interface SignalLocation {
+  latitude: number;
+  longitude: number;
+  label: string | null;
+  custom: boolean;
+}
+
+/** One candidate from GET /api/signals/geocode (Open-Meteo). */
+export interface GeocodeHit {
+  name: string | null;
+  admin1: string | null;
+  country: string | null;
+  country_code: string | null;
+  latitude: number | null;
+  longitude: number | null;
+}
+
 /** GET /api/tenant -> the Settings payload */
 export interface TenantInfo {
   tenant_id: string;
   name: string;
   thresholds: TenantThresholds;
+  signal_location?: SignalLocation;
   team: Record<string, { label: string; person: string }>;
   you: { role: string; label: string; can_approve: string[] };
+}
+
+/** PATCH /api/tenant body: partial workspace edit (name / thresholds / weather location). */
+export interface TenantPatch {
+  name?: string;
+  thresholds?: Partial<TenantThresholds>;
+  signal_latitude?: number;
+  signal_longitude?: number;
+  signal_location_label?: string;
+  reset_signal_location?: boolean;
 }
 
 /** GET/POST/DELETE /api/team/invites -> InviteOut. A teammate may hold several

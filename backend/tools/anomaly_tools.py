@@ -8,9 +8,12 @@ It takes NO money/inventory action, so there is no hard-limit tool here -- the
 safeguard is the severity OUTPUT guardrail, which halts autonomous downstream
 actions when a high-severity anomaly is detected.
 """
+import asyncio
+
 from agents import function_tool, RunContextWrapper
 
 from ..core.context import RunContext
+from ..integrations import live_write
 
 
 @function_tool
@@ -33,5 +36,9 @@ async def get_monitoring_signals(ctx: RunContextWrapper[RunContext], sku: str) -
 
 @function_tool
 async def raise_anomaly_alert(ctx: RunContextWrapper[RunContext], sku: str, message: str) -> str:
-    """Notify the ops team of a detected anomaly (Slack/Email mock)."""
-    return f"ANOMALY ALERT [tenant={ctx.context.tenant.tenant_id}] {sku}: {message}"
+    """Notify the ops team of a detected anomaly. Posts to a connected Slack webhook
+    when set, else a mock."""
+    tid = ctx.context.tenant.tenant_id
+    live = await asyncio.to_thread(live_write, tid, "slack", "", {"text": f"[ANOMALY {sku}] {message}"})
+    prefix = "SENT" if live is not None else "ANOMALY ALERT"
+    return f"{prefix} [tenant={tid}] {sku}: {message}"

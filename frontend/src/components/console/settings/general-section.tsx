@@ -1,20 +1,22 @@
 "use client";
 
 import * as React from "react";
-import { Check, Loader2, Lock } from "lucide-react";
+import { Check, Loader2, Lock, MapPin, RotateCcw, Search } from "lucide-react";
 
 import { useSession } from "@/lib/api/session";
 import { useQuery } from "@/lib/api/use-query";
-import { getTenant, updateTenant } from "@/lib/api/client";
+import { getTenant, updateTenant, geocodeLocation } from "@/lib/api/client";
 import { ErrorState } from "../page-shell";
-import { CardContent } from "@/components/ui/card";
+import { CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getPrefs, setPrefs } from "@/lib/prefs";
 import { cn } from "@/lib/utils";
-import type { TenantInfo } from "@/lib/api/types";
+import type { GeocodeHit, TenantInfo } from "@/lib/api/types";
 import { SettingsCard, SectionHeader, Field } from "./ui";
+
+type SectionSession = { tenantId: string; role: string; getToken?: () => Promise<string | null> };
 
 interface GeneralPrefs {
   currency: string;
@@ -51,9 +53,196 @@ export function GeneralSection() {
       ) : query.loading && !query.data ? (
         <Skeleton className="h-72 w-full rounded-xl" />
       ) : query.data ? (
-        <GeneralForm tenant={query.data} tenantId={tenantId} session={session} onSaved={query.refetch} />
+        <div className="space-y-4">
+          <GeneralForm tenant={query.data} tenantId={tenantId} session={session} onSaved={query.refetch} />
+          <WeatherLocationCard tenant={query.data} session={session} onSaved={query.refetch} />
+        </div>
       ) : null}
     </div>
+  );
+}
+
+function formatHit(hit: GeocodeHit): string {
+  return [hit.name, hit.admin1, hit.country].filter(Boolean).join(", ");
+}
+
+function WeatherLocationCard({
+  tenant,
+  session,
+  onSaved,
+}: {
+  tenant: TenantInfo;
+  session: SectionSession;
+  onSaved: () => void;
+}) {
+  const canEdit = tenant.you.role === "manager" || tenant.you.role === "admin";
+  const loc = tenant.signal_location;
+
+  const [q, setQ] = React.useState("");
+  const [results, setResults] = React.useState<GeocodeHit[]>([]);
+  const [searching, setSearching] = React.useState(false);
+  const [savingKey, setSavingKey] = React.useState<string | null>(null);
+  const [note, setNote] = React.useState<string | null>(null);
+
+  const current =
+    loc?.custom && loc.label
+      ? loc.label
+      : loc
+        ? `${loc.latitude.toFixed(2)}, ${loc.longitude.toFixed(2)}`
+        : "Default";
+
+  async function search() {
+    const query = q.trim();
+    if (!query) return;
+    setSearching(true);
+    setNote(null);
+    try {
+      const hits = await geocodeLocation(session, query);
+      setResults(hits);
+      if (!hits.length) setNote(`No places found for “${query}”.`);
+    } catch {
+      setNote("Location search is unavailable right now.");
+    } finally {
+      setSearching(false);
+    }
+  }
+
+  async function choose(hit: GeocodeHit) {
+    if (hit.latitude == null || hit.longitude == null) return;
+    const key = `${hit.latitude},${hit.longitude}`;
+    setSavingKey(key);
+    setNote(null);
+    try {
+      await updateTenant(session, {
+        signal_latitude: hit.latitude,
+        signal_longitude: hit.longitude,
+        signal_location_label: formatHit(hit),
+      });
+      setResults([]);
+      setQ("");
+      setNote(`Weather signal now reads from ${formatHit(hit)}.`);
+      onSaved();
+    } catch (err) {
+      setNote(err instanceof Error ? err.message : "Could not save location.");
+    } finally {
+      setSavingKey(null);
+    }
+  }
+
+  async function reset() {
+    setSavingKey("reset");
+    setNote(null);
+    try {
+      await updateTenant(session, { reset_signal_location: true });
+      setResults([]);
+      setNote("Reverted to the default location.");
+      onSaved();
+    } catch (err) {
+      setNote(err instanceof Error ? err.message : "Could not reset location.");
+    } finally {
+      setSavingKey(null);
+    }
+  }
+
+  return (
+    <SettingsCard>
+      <CardHeader className="border-b pb-4">
+        <CardTitle className="flex items-center gap-2">
+          <MapPin className="size-4 text-primary" /> Weather signal location
+        </CardTitle>
+        <CardDescription>
+          The forecasting agent reads live weather here to anticipate demand — a cold snap lifts
+          warm-apparel demand, a heatwave lifts cold-drink demand.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4 py-5">
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <span className="text-muted-foreground">Current:</span>
+          <span className="inline-flex items-center gap-1.5 rounded-full border bg-muted/40 px-2.5 py-1 font-medium text-foreground">
+            <MapPin className="size-3.5 text-muted-foreground" />
+            {current}
+            <span className="text-xs font-normal text-muted-foreground">
+              {loc?.custom ? "(custom)" : "(default)"}
+            </span>
+          </span>
+        </div>
+
+        {canEdit ? (
+          <Field label="Change location" htmlFor="wx-city" hint="Search by city or place name.">
+            <div className="flex gap-2">
+              <Input
+                id="wx-city"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    void search();
+                  }
+                }}
+                placeholder="e.g. London, Tokyo, São Paulo"
+                autoComplete="off"
+              />
+              <Button variant="outline" onClick={search} disabled={searching || !q.trim()}>
+                {searching ? <Loader2 className="size-4 animate-spin" /> : <Search className="size-4" />}
+                Search
+              </Button>
+            </div>
+          </Field>
+        ) : (
+          <p className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
+            <Lock className="size-3.5" /> Read-only for your role
+          </p>
+        )}
+
+        {results.length ? (
+          <ul role="list" className="divide-y rounded-lg border">
+            {results.map((hit) => {
+              const key = `${hit.latitude},${hit.longitude}`;
+              const saving = savingKey === key;
+              return (
+                <li key={key}>
+                  <button
+                    type="button"
+                    onClick={() => choose(hit)}
+                    disabled={!!savingKey}
+                    className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left text-sm hover:bg-muted/50 disabled:opacity-60"
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      <MapPin className="size-3.5 shrink-0 text-muted-foreground" />
+                      {formatHit(hit)}
+                    </span>
+                    {saving ? (
+                      <Loader2 className="size-4 animate-spin text-muted-foreground" />
+                    ) : (
+                      <Check className="size-4 text-muted-foreground opacity-0" aria-hidden />
+                    )}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        ) : null}
+
+        <div className="flex flex-wrap items-center gap-3">
+          {canEdit && loc?.custom ? (
+            <Button variant="ghost" size="sm" onClick={reset} disabled={savingKey === "reset"}>
+              {savingKey === "reset" ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <RotateCcw className="size-4" />
+              )}
+              Reset to default
+            </Button>
+          ) : null}
+          {note ? (
+            <p role="status" className="text-sm text-muted-foreground">
+              {note}
+            </p>
+          ) : null}
+        </div>
+      </CardContent>
+    </SettingsCard>
   );
 }
 

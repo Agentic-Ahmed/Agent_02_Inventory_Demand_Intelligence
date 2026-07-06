@@ -208,9 +208,30 @@ class TenantThresholdsPatch(BaseModel):
 
 
 class TenantPatch(BaseModel):
-    """PATCH /api/tenant body: rename the workspace and/or adjust guardrail thresholds."""
+    """PATCH /api/tenant body: rename the workspace, adjust guardrail thresholds, and/or
+    set the weather-signal location (send both lat+lon to set it, or reset to default)."""
     name: Optional[str] = None
     thresholds: Optional[TenantThresholdsPatch] = None
+    signal_latitude: Optional[float] = Field(default=None, ge=-90, le=90)
+    signal_longitude: Optional[float] = Field(default=None, ge=-180, le=180)
+    signal_location_label: Optional[str] = Field(
+        default=None, description="Human label for the saved location, e.g. 'London, GB'")
+    reset_signal_location: bool = Field(
+        default=False, description="Clear a saved location and fall back to the default")
+
+
+class GeocodeHit(BaseModel):
+    name: Optional[str] = None
+    admin1: Optional[str] = None
+    country: Optional[str] = None
+    country_code: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+
+
+class GeocodeOut(BaseModel):
+    query: str
+    results: list[GeocodeHit] = Field(default_factory=list)
 
 
 class EventIn(BaseModel):

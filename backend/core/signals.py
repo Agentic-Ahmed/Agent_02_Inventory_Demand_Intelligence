@@ -8,16 +8,20 @@ network/parse failure returns {} so get_external_signals falls back to its mock 
 the agent never breaks. Runs on the backend (clean network in prod); locally it works if the
 process has truststore injected, else it simply degrades to the mock.
 
-Location is env-configurable (SIGNAL_LATITUDE / SIGNAL_LONGITUDE); default is a neutral city.
-Per-tenant location is a natural later extension (store it on the tenant's integration config).
+Location precedence: a tenant's saved Settings location (per-tenant) -> the
+SIGNAL_LATITUDE / SIGNAL_LONGITUDE env default -> a neutral fallback city. A tenant sets
+its region in Settings by city name; geocode() turns that into coordinates (Open-Meteo's
+free geocoding API, no key).
 """
 from __future__ import annotations
 
 import json
 import os
+import urllib.parse
 import urllib.request
 
 _OPEN_METEO = "https://api.open-meteo.com/v1/forecast"
+_OPEN_METEO_GEO = "https://geocoding-api.open-meteo.com/v1/search"
 
 # WMO weather codes -> broad, human-readable condition.
 _CONDITION = {
@@ -32,14 +36,63 @@ _CONDITION = {
 }
 
 
-def signal_location(tenant_id: str = "") -> tuple[float, float]:
-    """(lat, lon) for the weather lookup. Env-configurable; defaults to a neutral city."""
+_DEFAULT_LAT, _DEFAULT_LON = 40.7128, -74.0060  # neutral fallback (New York)
+
+
+def _tenant_location(tenant_id: str) -> tuple[float, float] | None:
+    """A tenant's saved Settings location, or None. Crash-safe (runs on every forecast)."""
+    if not tenant_id:
+        return None
     try:
-        lat = float(os.environ.get("SIGNAL_LATITUDE", "40.7128"))
-        lon = float(os.environ.get("SIGNAL_LONGITUDE", "-74.0060"))
+        from .tenant_settings import overrides
+        loc = overrides(tenant_id).get("location") or {}
+        lat, lon = loc.get("latitude"), loc.get("longitude")
+        if lat is not None and lon is not None:
+            return float(lat), float(lon)
+    except Exception:
+        return None
+    return None
+
+
+def signal_location(tenant_id: str = "") -> tuple[float, float]:
+    """(lat, lon) for the weather lookup: the tenant's saved Settings location if any,
+    else the SIGNAL_LATITUDE/LONGITUDE env default, else a neutral city."""
+    saved = _tenant_location(tenant_id)
+    if saved:
+        return saved
+    try:
+        lat = float(os.environ.get("SIGNAL_LATITUDE", str(_DEFAULT_LAT)))
+        lon = float(os.environ.get("SIGNAL_LONGITUDE", str(_DEFAULT_LON)))
     except ValueError:
-        lat, lon = 40.7128, -74.0060
+        lat, lon = _DEFAULT_LAT, _DEFAULT_LON
     return lat, lon
+
+
+def geocode(name: str, limit: int = 5) -> list[dict]:
+    """Turn a city/place name into candidate locations via Open-Meteo geocoding (free,
+    no key). Returns [{name, admin1, country, country_code, latitude, longitude}], or []
+    on any failure (crash-safe)."""
+    q = (name or "").strip()
+    if not q:
+        return []
+    url = f"{_OPEN_METEO_GEO}?" + urllib.parse.urlencode(
+        {"name": q, "count": max(1, min(limit, 10)), "language": "en", "format": "json"})
+    try:
+        with urllib.request.urlopen(url, timeout=4.0) as r:
+            data = json.loads(r.read().decode())
+    except Exception:
+        return []
+    out = []
+    for it in (data.get("results") or []):
+        out.append({
+            "name": it.get("name"),
+            "admin1": it.get("admin1"),
+            "country": it.get("country"),
+            "country_code": it.get("country_code"),
+            "latitude": it.get("latitude"),
+            "longitude": it.get("longitude"),
+        })
+    return out
 
 
 def _demand_hint(temp_c: float | None, precip_mm: float | None, condition: str) -> str:

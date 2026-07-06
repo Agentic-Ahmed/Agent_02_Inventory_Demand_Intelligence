@@ -11,7 +11,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from ...core.context import TenantContext
 from ...core.roles import ROLE_LABEL, SPECIALIST_ROLE, ADMIN, MANAGER, can_approve
 from ...core.tenants import tenant_config, build_tenant_context
-from ...core.tenant_settings import TENANT_SETTINGS
+from ...core.tenant_settings import TENANT_SETTINGS, overrides
+from ...core.signals import signal_location
 from ..schemas import TenantPatch
 from ..deps import get_tenant
 from ..audit_store import AUDIT
@@ -21,6 +22,19 @@ router = APIRouter(prefix="/api", tags=["tenant"])
 # Bounds so a Settings edit can't push a threshold to a nonsensical value.
 _FRACTION_FIELDS = {"max_markdown", "min_confidence", "max_supplier_share", "hard_markdown_ceiling"}
 _MONEY_FIELDS = {"po_auto_approve_limit", "hard_po_ceiling"}
+
+
+def _signal_location_payload(tenant_id: str) -> dict:
+    """The weather-signal location for a tenant: the effective coordinates plus whether
+    they were set by the tenant (custom) or inherited from the default."""
+    saved = overrides(tenant_id).get("location") or {}
+    lat, lon = signal_location(tenant_id)
+    return {
+        "latitude": lat,
+        "longitude": lon,
+        "label": saved.get("label"),
+        "custom": bool(saved),
+    }
 
 
 def _tenant_payload(tenant: TenantContext) -> dict:
@@ -39,6 +53,7 @@ def _tenant_payload(tenant: TenantContext) -> dict:
             "hard_po_ceiling": tenant.hard_po_ceiling,
             "hard_markdown_ceiling": tenant.hard_markdown_ceiling,
         },
+        "signal_location": _signal_location_payload(tenant.tenant_id),
         "team": {r: {"label": ROLE_LABEL.get(r, r), "person": person}
                  for r, person in cfg.get("team", {}).items()},
         "you": {
@@ -68,12 +83,26 @@ async def update_tenant_info(patch: TenantPatch, tenant: TenantContext = Depends
             raise HTTPException(status_code=422, detail=f"{k} must be >= 0")
 
     name = patch.name.strip() if patch.name and patch.name.strip() else None
-    if not thr and name is None:
+
+    # Weather-signal location: reset clears it; otherwise both lat AND lon must be sent.
+    from ...core.tenant_settings import _UNSET
+    location: object = _UNSET
+    if patch.reset_signal_location:
+        location = None
+    elif patch.signal_latitude is not None or patch.signal_longitude is not None:
+        if patch.signal_latitude is None or patch.signal_longitude is None:
+            raise HTTPException(status_code=422, detail="both signal_latitude and signal_longitude are required")
+        location = {"latitude": patch.signal_latitude, "longitude": patch.signal_longitude}
+        if patch.signal_location_label:
+            location["label"] = patch.signal_location_label
+
+    if not thr and name is None and location is _UNSET:
         raise HTTPException(status_code=422, detail="nothing to update")
 
-    TENANT_SETTINGS.save(tenant.tenant_id, name, thr)
+    TENANT_SETTINGS.save(tenant.tenant_id, name, thr, location=location)
     AUDIT.log(tenant.tenant_id, "settings_updated", actor=tenant.user_role,
               summary="tenant settings changed",
-              detail={"name": name, "thresholds": thr})
+              detail={"name": name, "thresholds": thr,
+                      "location": None if location is _UNSET else location})
     # Rebuild the context so the response reflects the just-saved thresholds.
     return _tenant_payload(build_tenant_context(tenant.tenant_id, tenant.user_role))
