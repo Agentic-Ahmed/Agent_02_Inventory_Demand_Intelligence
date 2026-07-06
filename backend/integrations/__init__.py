@@ -7,7 +7,8 @@ endpoint via `live_read` / `live_write`. If nothing is connected -- or the live 
 fails for any reason -- the tool falls back to its deterministic mock, so the agent
 never breaks. This is the single swap-point where a real vendor adapter drops in.
 """
+from . import ap2
 from .registry import live_read, live_write, resolve_source
 from .rest import RestSource
 
-__all__ = ["live_read", "live_write", "resolve_source", "RestSource"]
+__all__ = ["live_read", "live_write", "resolve_source", "RestSource", "ap2"]

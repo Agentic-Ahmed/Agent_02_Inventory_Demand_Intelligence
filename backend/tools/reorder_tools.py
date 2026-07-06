@@ -7,7 +7,9 @@ context (CLAUDE.md S9: always scope by tenant_id).
 MONEY ACTION: create_purchase_order is the only tool here that spends money. It
 carries a TOOL-LEVEL HARD LIMIT (Layer 3, CLAUDE.md S5) so over-execution is
 physically impossible even if the model tries. The authorized payment itself is
-executed via Google AP2 (Agent Payments Protocol) -- mocked here, real later.
+settled via Google AP2 (Agent Payments Protocol) using a SIGNED SPEND MANDATE
+(integrations/ap2.py) -- a faithful, swap-ready model: build -> sign -> settle. Dev
+mock-settles locally; setting AP2_ENDPOINT points it at a real gateway, no code change.
 Division of responsibility:
   * guardrails (spend / supplier diversity) decide WHETHER to spend,
   * the hard ceiling here is the final backstop,
@@ -18,7 +20,7 @@ import asyncio
 from agents import function_tool, RunContextWrapper
 
 from ..core.context import RunContext, TenantContext
-from ..integrations import live_read, live_write
+from ..integrations import live_read, live_write, ap2
 
 
 @function_tool
@@ -59,23 +61,47 @@ def enforce_and_submit_po(
     tenant: TenantContext, sku: str, qty: int, supplier_id: str, unit_cost: float
 ) -> dict:
     """Core PO submission with the hard-limit check (plain fn so it can be unit
-    tested directly). Refuses to execute above the tenant's hard ceiling."""
+    tested directly). Refuses to execute above the tenant's hard ceiling, then settles
+    the authorized payment through Google AP2 using a signed spend mandate."""
     total = round(qty * unit_cost, 2)
+    # Layer 3 backstop: refuse over the hard ceiling BEFORE any payment is authorized.
     if total > tenant.hard_po_ceiling:
         return {
             "status": "REJECTED",
             "reason": f"total ${total:,.0f} exceeds hard ceiling ${tenant.hard_po_ceiling:,.0f}",
             "escalated": True,
         }
-    # Real deployment: authorize + settle this payment via Google AP2
-    # (Agent Payments Protocol) using a signed spend mandate. Mocked here.
+    # Authorized -> settle via Google AP2 (Agent Payments Protocol): build + sign a spend
+    # mandate and settle it (dev: mock; prod: real gateway via AP2_ENDPOINT). Funds only
+    # ever move through ap2.settle().
+    cart = {
+        "payee": supplier_id,
+        "total": total,
+        "lines": [{"sku": sku, "qty": qty, "unit_cost": unit_cost, "line_total": total}],
+    }
+    settlement = ap2.authorize_and_settle(tenant, cart, scope="purchase_order")
+    mandate, receipt = settlement["mandate"], settlement["receipt"]
+    if receipt.get("status") != "settled":
+        return {
+            "status": "REJECTED",
+            "sku": sku,
+            "reason": f"AP2 settlement failed: {receipt.get('reason', 'unknown')}",
+            "escalated": True,
+        }
     return {
         "status": "SUBMITTED",
         "sku": sku,
         "qty": qty,
         "supplier_id": supplier_id,
         "total_cost": total,
-        "payment_protocol": "google-ap2 (mock)",
+        "payment": {
+            "protocol": "google-ap2",
+            "mode": receipt.get("mode"),
+            "mandate_id": mandate["mandate_id"],
+            "transaction_id": receipt.get("transaction_id"),
+            "signature_alg": mandate["signature"]["alg"],
+            "requires_human_approval": mandate["intent"]["requires_human_approval"],
+        },
     }
 
 
