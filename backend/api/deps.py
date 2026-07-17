@@ -49,6 +49,9 @@ def get_tenant(
         tenant_id, role = auth.identity_from_claims(claims)
         ctx = build_tenant_context(tenant_id, role)
         ctx.user_id = auth.user_id_from_claims(claims)
+        # tenant_id prefers the org SLUG (readable); the raw org_... id is needed
+        # separately for Clerk Backend API calls like creating an invitation.
+        ctx.clerk_org_id = claims.get("org_id")
         return ctx
     # No Clerk configured. Trusting the identity headers is a local-dev convenience only;
     # in a deployed environment it would let anyone impersonate any tenant, so fail closed.

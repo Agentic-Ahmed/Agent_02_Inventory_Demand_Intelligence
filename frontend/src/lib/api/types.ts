@@ -121,6 +121,10 @@ export interface Invite {
   status: "pending" | "revoked" | "accepted";
   created_at: string;
   revoked_at: string | null;
+  /** A real Clerk invitation email was delivered (server-side, when Clerk is configured). */
+  email_sent?: boolean;
+  /** Why delivery failed, if it did -- the invite is still recorded either way. */
+  email_error?: string | null;
 }
 
 /** GET/POST /api/integrations -> IntegrationOut. A tenant's connection to one of their

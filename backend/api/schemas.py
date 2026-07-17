@@ -86,6 +86,8 @@ class InviteOut(BaseModel):
     status: str
     created_at: str
     revoked_at: Optional[str] = None
+    email_sent: bool = Field(default=False, description="A real Clerk invitation email was delivered")
+    email_error: Optional[str] = Field(default=None, description="Why delivery failed, if it did")
 
 
 class MemoryAdd(BaseModel):

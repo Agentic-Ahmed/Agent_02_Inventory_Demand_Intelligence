@@ -13,6 +13,7 @@ class TenantContext:
     tenant_id: str
     user_role: str = "planner"
     user_id: str = "user"                     # who is asking -> keys per-user chat memory
+    clerk_org_id: Optional[str] = None        # raw Clerk org_... id (tenant_id may be the slug instead)
     po_auto_approve_limit: float = 10_000.0   # spend guardrail (#1)
     max_markdown: float = 0.40                # markdown depth guardrail (#2)
     min_confidence: float = 0.70              # forecast confidence guardrail (#3)

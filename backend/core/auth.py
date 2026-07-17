@@ -17,7 +17,10 @@ To activate later:
   4. The frontend sends the Clerk session token as `Authorization: Bearer <jwt>`
      (or the __session cookie).
 """
+import json
 import os
+import urllib.error
+import urllib.request
 from typing import Optional
 
 from .roles import ROLES, MANAGER, ADMIN, PLANNER
@@ -26,6 +29,10 @@ CLERK_SECRET_KEY = os.environ.get("CLERK_SECRET_KEY", "")
 CLERK_PUBLISHABLE_KEY = os.environ.get("CLERK_PUBLISHABLE_KEY", "")
 CLERK_ISSUER = os.environ.get("CLERK_ISSUER", "").rstrip("/")
 CLERK_JWKS_URL = os.environ.get("CLERK_JWKS_URL", "")
+
+# Where the deployed console lives -- used as the default redirect target for a Clerk
+# organization invitation (see create_organization_invitation below).
+FRONTEND_BASE_URL = os.environ.get("FRONTEND_BASE_URL", "https://quorum-nu-sand.vercel.app").rstrip("/")
 
 
 def clerk_enabled() -> bool:
@@ -111,3 +118,52 @@ def verify_clerk_token(token: str) -> dict:
     return jwt.decode(
         token, signing_key, algorithms=["RS256"], options={"verify_aud": False}, **kwargs
     )
+
+
+def clerk_org_role(app_roles: list) -> str:
+    """Our invite carries a SET of app roles (a teammate's approval authority is their
+    union), but a Clerk org membership carries exactly one role. Mirrors the mapping
+    used everywhere else: Inventory Manager -> org:admin, anything else -> org:member."""
+    return "org:admin" if MANAGER in (app_roles or []) else "org:member"
+
+
+def create_organization_invitation(
+    org_id: str, email: str, app_roles: list, inviter_user_id: str,
+    redirect_url: Optional[str] = None,
+) -> dict:
+    """Create a REAL Clerk organization invitation via the Backend API.
+
+    This is the only way to attach a redirect_url to an invitation -- Clerk's client-side
+    `organization.inviteMember()` (used in the browser) has no such parameter, so an
+    invitee who accepts is stranded on Clerk's generic Account Portal instead of landing
+    back in the console. Must run server-side: it uses the account's secret key.
+
+    Raises RuntimeError with Clerk's own error detail on failure -- delivery failing must
+    surface to the caller (the invite is still recorded locally either way), never fail
+    silently like the tenant-integration adapters do.
+    """
+    if not CLERK_SECRET_KEY:
+        raise RuntimeError("CLERK_SECRET_KEY not configured")
+    payload = {
+        "email_address": email,
+        "role": clerk_org_role(app_roles),
+        "inviter_user_id": inviter_user_id,
+        "redirect_url": redirect_url or f"{FRONTEND_BASE_URL}/app",
+    }
+    req = urllib.request.Request(
+        f"https://api.clerk.com/v1/organizations/{org_id}/invitations",
+        data=json.dumps(payload).encode(),
+        method="POST",
+        headers={
+            "Authorization": f"Bearer {CLERK_SECRET_KEY}",
+            "Content-Type": "application/json",
+        },
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            return json.loads(resp.read().decode())
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode(errors="replace")[:300]
+        raise RuntimeError(f"Clerk invitation failed ({exc.code}): {detail}") from exc
+    except Exception as exc:  # noqa: BLE001 - network/parse failure, surface plainly
+        raise RuntimeError(f"Clerk invitation failed: {type(exc).__name__}: {exc}") from exc

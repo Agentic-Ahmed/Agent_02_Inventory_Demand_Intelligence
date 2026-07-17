@@ -260,6 +260,7 @@ export async function createInvite(
     status: "pending",
     created_at: new Date().toISOString(),
     revoked_at: null,
+    email_sent: false,
   };
   (fixtureInvites[session.tenantId] ??= []).unshift(item);
   return item;

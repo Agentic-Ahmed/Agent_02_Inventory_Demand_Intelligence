@@ -10,8 +10,6 @@ import type { Session, TenantThresholds } from "@/lib/api/types";
 import { createInvite } from "@/lib/api/client";
 import { INVITABLE_ROLES, ROLE_META, approvalSummary } from "@/lib/roles";
 
-type DeliverFn = (email: string, roles: string[]) => Promise<void>;
-
 const STEPS = [
   { id: "intro", eyebrow: "Add to workspace" },
   { id: "details", eyebrow: "Who & what" },
@@ -25,21 +23,20 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /**
  * Invite Teammate wizard — a get-started-style modal. Steps: intro → email + roles
- * (multi-select) → what they can approve → review → sent. On send it records the
- * full role set to the backend (source of truth, since a Clerk membership is single-
- * role) and, when a workspace is connected, delivers a real Clerk email invitation
- * via `deliver`.
+ * (multi-select) → what they can approve → review → sent. On send it records the full
+ * role set to the backend (source of truth, since a Clerk membership is single-role);
+ * the backend also delivers a real Clerk email invitation when a workspace is connected
+ * (POST /api/team/invites — see backend/api/routes/team.py) and reports back whether
+ * that delivery succeeded.
  */
 export function InviteWalkthrough({
   session,
   thresholds,
-  deliver,
   onClose,
   onInvited,
 }: {
   session: Session;
   thresholds?: TenantThresholds;
-  deliver?: DeliverFn;
   onClose: () => void;
   onInvited?: () => void;
 }) {
@@ -69,14 +66,10 @@ export function InviteWalkthrough({
     setError(null);
     setNote(null);
     try {
-      await createInvite(session, { email: email.trim(), roles });
-      if (deliver) {
-        try {
-          await deliver(email.trim(), roles);
-        } catch (e) {
-          setNote(e instanceof Error ? e.message : "Invite recorded, but the email couldn't be sent.");
-        }
-      } else {
+      const result = await createInvite(session, { email: email.trim(), roles });
+      if (result.email_error) {
+        setNote(`Recorded, but the email couldn't be sent: ${result.email_error}`);
+      } else if (!result.email_sent) {
         setNote("Recorded. The email invitation sends once your workspace is connected to Clerk.");
       }
       onInvited?.();
