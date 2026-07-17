@@ -6,6 +6,11 @@ Every request carries a tenant + a user role. Two sources, in priority order:
   2. X-Tenant-Id / X-User-Role headers (dev) -- the stand-in used when no auth provider
      is configured yet, so the API is usable before Clerk is switched on.
 
+SECURE BY DEFAULT: source #2 trusts client-supplied identity headers, so it is allowed
+in local development ONLY. A deployed environment that has no Clerk config (and hasn't
+explicitly opted in via ALLOW_INSECURE_DEV_AUTH=true) fails CLOSED with 401 rather than
+handing any caller another tenant's data. See core.auth.dev_auth_allowed().
+
 The tenant's own guardrail thresholds come from the registry (core/tenants.py).
 """
 import os
@@ -45,7 +50,18 @@ def get_tenant(
         ctx = build_tenant_context(tenant_id, role)
         ctx.user_id = auth.user_id_from_claims(claims)
         return ctx
-    # Dev fallback: no auth provider configured yet -> trust the headers.
+    # No Clerk configured. Trusting the identity headers is a local-dev convenience only;
+    # in a deployed environment it would let anyone impersonate any tenant, so fail closed.
+    if not auth.dev_auth_allowed():
+        raise HTTPException(
+            status_code=401,
+            detail=(
+                "Authentication is not configured for this deployment. Set the Clerk "
+                "CLERK_SECRET_KEY + CLERK_ISSUER (or CLERK_JWKS_URL) env vars, or set "
+                "ALLOW_INSECURE_DEV_AUTH=true to intentionally allow the open dev session."
+            ),
+        )
+    # Dev fallback: trust the headers.
     ctx = build_tenant_context(x_tenant_id or "acme", x_user_role or "planner")
     ctx.user_id = x_user_id or "user"
     return ctx

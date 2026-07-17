@@ -33,6 +33,27 @@ def clerk_enabled() -> bool:
     return bool(CLERK_SECRET_KEY and (CLERK_JWKS_URL or CLERK_ISSUER))
 
 
+def _is_production() -> bool:
+    """Best-effort 'are we running in a deployed environment?' check. Explicit APP_ENV
+    wins; otherwise Render sets RENDER=true automatically on every deploy."""
+    if os.environ.get("APP_ENV", "").lower() in ("production", "prod"):
+        return True
+    return bool(os.environ.get("RENDER"))
+
+
+def dev_auth_allowed() -> bool:
+    """May the API trust the dev X-Tenant-Id / X-User-Role headers (no real sign-in)?
+
+    Secure by default: the header-trust fallback runs in local development only. In a
+    deployed environment it is refused unless explicitly opted in with
+    ALLOW_INSECURE_DEV_AUTH=true -- so a production deploy that is missing its Clerk
+    config fails CLOSED (401) instead of silently trusting client-supplied identity
+    headers and exposing every tenant's data."""
+    if os.environ.get("ALLOW_INSECURE_DEV_AUTH", "").lower() == "true":
+        return True
+    return not _is_production()
+
+
 def map_clerk_role(org_role: Optional[str]) -> str:
     """Map a Clerk org role string (e.g. 'org:buyer', 'org:admin') to one of our ROLES.
     Name your Clerk org roles to match ours and they pass straight through."""
